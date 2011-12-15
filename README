@@ -1,0 +1,57 @@
+* This is a Web-based turnin and grading system.
+* Student workflow
+** Create an account
+*** Log in with BYU NetID
+*** Input first name, last name, email, and picture
+** Dashboard
+*** Current grade stats (min, average, max, max opt)
+*** Shows grade states for the class (min, median, average, max)
+*** Next assignments that are due
+*** Past assignment grades
+** Submitting future assignments
+*** First you submit the file(s)
+*** If it is a program, it is run in a sandbox and the output is collected
+*** Once the deadline has passed, you must come back to grade it (by filling out a survey)
+*** The survey asks a question and the answer is either multiple choice, free-form, or select a line
+*** Only then is it sent to me
+** Viewing old grades
+*** Shows each question with my answer/comment
+*** Allows a comment/discussion about each point
+
+* Grader workflow
+** No need to create an account
+*** The account is hard-coded in, independent of NetID
+*** This may be a problem for Bryan who will want to split the work with a student
+** Dashboard
+*** Shows grade states for the class (min, median, average, max)
+*** Allows me to look at the grades of each student in a chart + detail (ability to change grades)
+*** Shows assignments that need to be graded
+*** Shows comments that need to be responded to (with option of changing a grade)
+** Grading
+*** Shows the whole program
+*** For each question
+**** Jumps to a line number they selected
+**** I approve or disapprove
+**** And optionally can add a comment
+*** For non-line number questions, I just approve or disapprove (although maybe I need to allow a number between 0 and 1 to be inputted)
+** Comments
+*** Shows the program in context
+*** Jumps to the line number
+*** Shows my previous input on it
+*** Allows me to change the grade
+
+* Database
+** Filesystem based
+** Assignment data is "hard coded" in a library / little language
+** students
+*** <NetID>
+**** info.rktd
+***** (list first last email)
+**** photo.jpg
+**** <assignment>
+***** <file> (The file they submitted)
+***** <file>.out (Its output, if a program)
+***** grade.rktd
+****** A record of their answers to grading questions
+****** A record of my answers
+****** A record of comments
