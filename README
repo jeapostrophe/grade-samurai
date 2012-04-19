@@ -2,7 +2,7 @@
 * Student workflow
 ** Create an account
 *** Log in with BYU NetID
-*** Input first name, last name, email, and picture
+*** Input first name, last name, email, and upload picture
 ** Dashboard
 *** Current grade stats (min, average, max, max opt)
 *** Shows grade states for the class (min, median, average, max)
@@ -11,9 +11,13 @@
 ** Submitting future assignments
 *** First you submit the file(s)
 *** If it is a program, it is run in a sandbox and the output is collected
+**** Or maybe just have them submit the output too and have a way to verify it.
 *** Once the deadline has passed, you must come back to grade it (by filling out a survey)
+**** They must do this within 24 hours.
 *** The survey asks a question and the answer is either multiple choice, free-form, or select a line
 *** Only then is it sent to me
+** Have the students grade another student's assignments
+*** And their grade is based on how close they were to my oracular grade
 ** Viewing old grades
 *** Shows each question with my answer/comment
 *** Allows a comment/discussion about each point
