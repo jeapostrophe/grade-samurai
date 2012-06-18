@@ -1,0 +1,4 @@
+compiled/
+db/
+secret-salt
+*~
