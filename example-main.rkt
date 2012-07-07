@@ -1,8 +1,9 @@
-#lang racket
-(require
- web-server/servlet-env
- "app.rkt"
- "model.rkt")
+#lang racket/base
+(require web-server/servlet-env
+         racket/list
+         racket/runtime-path
+         "app.rkt"
+         "model.rkt")
 
 (define musical-notation
   (assignment 
@@ -43,13 +44,15 @@
 (define (authenticate-byu u p)
   (ldap-authenticate "ldap.byu.edu" 389 (format "uid=~a,ou=People,o=BYU.edu" u) p))
 
-(serve/servlet (get-start-handler
+(define-runtime-path secret-salt-path "secret-salt")
+
+(serve/servlet (make-start-handler
                 #:admin-users-hash (hash "admin" "password")
                 #:assignment-list assignments
                 #:authenticate-users-with authenticate-byu
                 #:username-request-text "NetId: "
                 #:password-request-text "RouteY Password: "
-                #:secret-salt-path "secret-salt"
+                #:secret-salt-path secret-salt-path
                 #:submissions-close-at (deadline 17 0 0))
                #:port 9000
                #:listen-ip #f

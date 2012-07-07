@@ -1,18 +1,25 @@
-#lang racket
-(require
- web-server/http
- web-server/dispatchers/dispatch
- web-server/dispatch
- web-server/servlet/web
- web-server/formlets
- "model.rkt"
- "../m8b/id-cookie.rkt")
+#lang racket/base
+(require web-server/http
+         web-server/dispatchers/dispatch
+         web-server/dispatch
+         web-server/servlet/web
+         web-server/formlets
+         racket/file
+         racket/list
+         racket/match
+         racket/runtime-path
+         file/md5
+         srfi/13
+         "model.rkt"
+         "../m8b/id-cookie.rkt")
 
-(define (get-start-handler
+(define-runtime-path source-dir ".")
+
+(define (make-start-handler
          #:admin-users-hash
          [admin-users (hash)]
          #:assignment-list 
-         [assignments empty]
+         [assignments '()]
          #:authenticate-users-with
          [authenticate-users (λ (un pw) #f)]
          #:username-request-text
@@ -21,11 +28,11 @@
          [login-formlet-pw-text "Password: "]
          #:submissions-close-at 
          [submissions-close-at (deadline 23 59 0)]
-         #:secret-salt-path
-         [secret-salt-path "secret-salt-path"])
+         #:secret-salt-path 
+         [secret-salt-path "secret-salt"])
   (begin
-    (define (is-admin-username? un) (hash-has-key? admin-users un)); TODO delete
-    (define (authenticate-admin un pw); TODO delete
+    (define (is-admin-username? un) (hash-has-key? admin-users un)); TODO move to model?
+    (define (authenticate-admin un pw); TODO move to model?
       (if (is-admin-username? un)
           (string=? pw (hash-ref admin-users un))
           #f))
@@ -71,6 +78,70 @@
                        (list (cookie->header (make-id-cookie secret-salt username))))
           (login req (format "Invalid password for user (~S)" username))))
     
+    
+    (define (manage-account req)
+      
+      (define user-dir (build-path source-dir "db" (current-user)))
+      
+      (define existing-info 
+        (cond
+          [(file-exists? (build-path user-dir "info.rktd"))
+           (file->value (build-path user-dir "info.rktd"))]
+          [else (student "" "" "" "")]))
+      
+      (define (default-text-input default-string)
+        (to-string (default (string->bytes/utf-8 default-string) (text-input #:value (string->bytes/utf-8 default-string)))))
+      
+      (define account-formlet
+        (formlet
+         (div ([id "form-inputs"])
+              (table
+               (tr (td "Legal First Name: ")
+                   (td ,{(default-text-input (student-firstname existing-info)) . => . first-name}))
+               (tr (td "Last Name: ")
+                   (td ,{(default-text-input (student-lastname existing-info)) . => . last-name}))
+               (tr (td "I Prefer to be Known As: ")
+                   (td ,{(default-text-input (student-nickname existing-info)) . => . nick-name}))
+               (tr (td "Email Address: ")
+                   (td ,{(default-text-input (student-email existing-info)) . => . email}))
+               (tr (td "Picture I can be recognized by: ")
+                   (td ,{(file-upload) . => . photo})))
+              (p "Instead of this: " 
+                 (img ([src ,(format "/students/~a/photo" (current-user))]))))
+         (values first-name last-name nick-name email photo)))
+      
+      (define account-form
+        (send/suspend
+         (λ (k-url)
+           (template
+            #:breadcrumb (list (cons "Account Admin" #f))
+            `(div ([id "account"])
+                  (h1 ,(format "Account Admin for ~a" (current-user)))
+                  (form ([action ,k-url] [method "post"])
+                        ,@(formlet-display account-formlet)
+                        (input ([type "submit"] [value "Update Info"]))))))))
+      
+      (define-values (first-name last-name nick-name email photo) 
+        (formlet-process account-formlet account-form))
+      
+      (make-directory* user-dir)
+      (call-with-output-file (build-path user-dir "info.rktd") #:exists 'replace
+        (λ (info-out) 
+          (write (student nick-name first-name last-name email) info-out)))
+      (cond 
+        [(binding:file? photo)
+         (call-with-output-file (build-path user-dir "photo.jpg") #:exists 'replace
+           (λ (photo-out)
+             (write-bytes (binding:file-content photo) photo-out)))]
+        [(binding:form? photo)
+         (displayln "binding:form")
+         (call-with-output-file (build-path user-dir "photo.jpg") #:exists 'replace
+           (λ (photo-out)
+             (write-bytes (binding:form-value photo) photo-out)))])
+      
+      (redirect-to (main-url show-root))) ;TODO redirect to student page?
+    
+    
     (define (view-student req student)
       (cond 
         [(or (is-admin-username? (current-user))
@@ -93,7 +164,8 @@
        [("login") login]
        [("logout") logout]
        [("account") manage-account]
-       [("students" (string-arg)) view-student]))
+       [("students" (string-arg)) view-student]
+       [("students" (string-arg) "photo") view-student-photo]))
     
     (define (logout req)
       (redirect-to
@@ -138,12 +210,21 @@
         [else (next-dispatcher)])))
   require-login-then-dispatch)
 
-(define (manage-account req)
-  (send/suspend/dispatch
-   (λ (embed/url)
-     (response/xexpr
-      `(html (head (title "Account Admin"))
-             (body (h1 ,(string-append "Account Admin for " (current-user)))))))))
+(define (view-student-photo req student)
+  (define user-img-path (build-path source-dir "db" student "photo.jpg"))
+  (define user-info-path (build-path source-dir "db" student "info.rktd"))
+  (define user-email 
+    (if (file-exists? user-info-path)
+        (student-email (file->value user-info-path))
+        ""))
+  (if (file-exists? user-img-path)
+      (response/full
+       200 #"Okay"
+       (current-seconds) #"image/jpg"
+       empty
+       (list (file->bytes user-img-path)))
+      (redirect-to (format "http://www.gravatar.com/avatar/~a?s=160&d=mm" 
+                           (md5 (string-downcase (string-trim-both user-email)))))))
 
 (define (render-admin)
   (send/suspend/dispatch
@@ -220,4 +301,4 @@
                    [class "tab-content"])
                   ,(if direct-link "" body)))))
 
-(provide get-start-handler)
+(provide make-start-handler)
