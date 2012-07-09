@@ -105,9 +105,7 @@
                (tr (td "Email Address: ")
                    (td ,{(default-text-input (student-email existing-info)) . => . email}))
                (tr (td "Picture I can be recognized by: ")
-                   (td ,{(file-upload) . => . photo})))
-              (p "Instead of this: " 
-                 (img ([src ,(format "/students/~a/photo" (current-user))]))))
+                   (td ,{(file-upload) . => . photo}))))
          (values first-name last-name nick-name email photo)))
       
       (define account-form
@@ -117,8 +115,11 @@
             #:breadcrumb (list (cons "Account Admin" #f))
             `(div ([id "account"])
                   (h1 ,(format "Account Admin for ~a" (current-user)))
-                  (form ([action ,k-url] [method "post"])
+                  (form ([action ,k-url] [method "post"] [enctype "multipart/form-data"])
                         ,@(formlet-display account-formlet)
+                        (p "Instead of this: "
+                           (img ([src ,(format "/students/~a/photo" (current-user))]
+                                 [width "160"] [height "160"])))
                         (input ([type "submit"] [value "Update Info"]))))))))
       
       (define-values (first-name last-name nick-name email photo) 
