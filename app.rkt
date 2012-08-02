@@ -1,5 +1,6 @@
 #lang racket/base
 (require web-server/http
+         web-server/http/bindings
          web-server/dispatchers/dispatch
          web-server/dispatch
          web-server/servlet/web
@@ -19,15 +20,13 @@
          #:admin-users-hash
          [admin-users (hash)]
          #:assignment-list 
-         [assignments '()]
+         [assignments empty]
          #:authenticate-users-with
          [authenticate-users (λ (un pw) #f)]
          #:username-request-text
          [login-formlet-un-text "Username: "]
          #:password-request-text
          [login-formlet-pw-text "Password: "]
-         #:submissions-close-at 
-         [submissions-close-at (deadline 23 59 0)]
          #:secret-salt-path 
          [secret-salt-path "secret-salt"])
   (begin
@@ -90,7 +89,8 @@
           [else (student "" "" "" "")]))
       
       (define (default-text-input default-string)
-        (to-string (default (string->bytes/utf-8 default-string) (text-input #:value (string->bytes/utf-8 default-string)))))
+        (to-string (default (string->bytes/utf-8 default-string) 
+                     (text-input #:value (string->bytes/utf-8 default-string)))))
       
       (define account-formlet
         (formlet
@@ -126,19 +126,12 @@
         (formlet-process account-formlet account-form))
       
       (make-directory* user-dir)
-      (call-with-output-file (build-path user-dir "info.rktd") #:exists 'replace
-        (λ (info-out) 
-          (write (student nick-name first-name last-name email) info-out)))
-      (cond 
-        [(binding:file? photo)
-         (call-with-output-file (build-path user-dir "photo.jpg") #:exists 'replace
-           (λ (photo-out)
-             (write-bytes (binding:file-content photo) photo-out)))]
-        [(binding:form? photo)
-         (displayln "binding:form")
-         (call-with-output-file (build-path user-dir "photo.jpg") #:exists 'replace
-           (λ (photo-out)
-             (write-bytes (binding:form-value photo) photo-out)))])
+      (write-to-file (student nick-name first-name last-name email) 
+                     (build-path user-dir "info.rktd") #:exists 'replace)
+      (if (binding:file? photo)
+          (display-to-file (binding:file-content photo)
+                           (build-path user-dir "photo.jpg") #:exists 'replace)
+          (void))
       
       (redirect-to (main-url show-root))) ;TODO redirect to student page?
     
@@ -166,13 +159,72 @@
        [("logout") logout]
        [("account") manage-account]
        [("students" (string-arg)) view-student]
-       [("students" (string-arg) "photo") view-student-photo]))
+       [("students" (string-arg) "photo") view-student-photo]
+       [("assignments" (string-arg) "manage-files") manage-files]
+       [("assignments" (string-arg) "manage-files" "delete" (string-arg)) delete-a-file]))
+    
     
     (define (logout req)
       (redirect-to
        (main-url show-root)
        #:headers
        (list (cookie->header logout-id-cookie))))
+    
+    (define (render-main)
+      (send/suspend/dispatch
+       (λ (embed/url)
+         (response/xexpr
+          `(html (head (title "Student Main Page"))
+                 (body (h1 "Student Main Page")
+                       
+                       ))))))
+    (define (render-assignments-student-view)
+      empty)
+    
+    (define (delete-a-file req a-id file-to-delete)
+      (define assignment (findf (λ (a) (string=? a-id (assignment-id a))) assignments))
+      (cond
+        [(< (current-seconds) (assignment-due assignment))
+            (define file-path (build-path source-dir "db" (current-user) a-id "uploads" file-to-delete))
+            (if (file-exists? file-path)
+                (delete-file file-path)
+                (void))]
+        [else (void)])
+      (redirect-to (main-url manage-files a-id)))
+    
+    (define (manage-files req a-id)
+      (define assignment (findf (λ (a) (string=? a-id (assignment-id a))) assignments))
+      (define files-dir (build-path source-dir "db" (current-user) a-id "uploads"))
+      (make-directory* files-dir)
+      (define (extract-binding:file req)
+        (bindings-assq #"new-file" (request-bindings/raw req)))
+      (define new-file-binding
+        (extract-binding:file
+         (send/suspend
+          (λ (k-url)
+            (response/xexpr
+             `(html (head (title ,(format "Manage Files - ~a" a-id)))
+                    (body (h1 ,(format "Manage Files for ~a" a-id))
+                          (p ,(let ([seconds-left (- (assignment-due assignment) (current-seconds))])
+                                (format "File Management for ~a ~a" a-id
+                                        (if (seconds-left . < . 0)
+                                            "is closed"
+                                            (format "closes in ~a seconds" seconds-left)))))
+                          (table
+                           (tr (th "Filename") (th "Delete?"))
+                           ,@(map (λ (file-path)
+                                    `(tr (td ,(path->string file-path))
+                                         (td (a ([href ,(main-url delete-a-file a-id (path->string file-path))]) "X"))))
+                                  (directory-list files-dir)))
+                          (form ([action ,k-url] [method "post"] [enctype "multipart/form-data"])
+                                (table (tr (td (input ([type "file"] [name "new-file"]))) 
+                                           (td (input ([type "submit"][value "Add File"])))))))))))))
+      (if (< (current-seconds) (assignment-due assignment))
+          (display-to-file (binding:file-content new-file-binding) 
+                           (build-path files-dir (bytes->string/utf-8 (binding:file-filename new-file-binding))))
+          (void))
+      (redirect-to (main-url manage-files a-id)))
+    
     
     (define (template #:breadcrumb bc
                       . bodies)
@@ -233,13 +285,6 @@
      (response/xexpr
       `(html (head (title "Admin Page"))
              (body (h1 "Admin Page")))))))
-
-(define (render-main)
-  (send/suspend/dispatch
-   (λ (embed/url)
-     (response/xexpr
-      `(html (head (title "Student Main Page"))
-             (body (h1 "Student Main Page")))))))
 
 (define current-user (make-parameter #f))
 
