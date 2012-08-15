@@ -8,9 +8,11 @@
          racket/file
          racket/list
          racket/match
+         racket/date
          racket/runtime-path
+         racket/string
          file/md5
-         srfi/13
+         (only-in srfi/13 string-trim-both)
          "model.rkt"
          "../m8b/id-cookie.rkt")
 
@@ -118,7 +120,7 @@
                   (form ([action ,k-url] [method "post"] [enctype "multipart/form-data"])
                         ,@(formlet-display account-formlet)
                         (p "Instead of this: "
-                           (img ([src ,(format "/students/~a/photo" (current-user))]
+                           (img ([src ,(main-url view-student-photo (current-user))]
                                  [width "160"] [height "160"])))
                         (input ([type "submit"] [value "Update Info"]))))))))
       
@@ -139,7 +141,7 @@
     (define (view-student req student)
       (cond 
         [(or (is-admin-username? (current-user))
-             (string=? (current-user) student))          
+             (string=? (current-user) student))
          (send/suspend/dispatch
           (λ (embed/url)
             (response/xexpr
@@ -158,10 +160,55 @@
        [("login") login]
        [("logout") logout]
        [("account") manage-account]
-       [("students" (string-arg)) view-student]
-       [("students" (string-arg) "photo") view-student-photo]
-       [("assignments" (string-arg) "manage-files") manage-files]
-       [("assignments" (string-arg) "manage-files" "delete" (string-arg)) delete-a-file]))
+       [("student" (string-arg)) view-student]
+       [("student" (string-arg) "photo") view-student-photo]
+       [("assignment" (string-arg) "manage-files") manage-files]
+       [("assignment" (string-arg) "manage-files" "delete" (string-arg)) delete-a-file]
+       [("assignment" (string-arg) "self-eval") evaluate-self]
+       [("assignment" (string-arg) "peer-eval") evaluate-peer]))
+    
+    (define (evaluate-self req a-id);TODO put files in iframe - actually ask questions
+      (display-files (current-user) a-id))
+    (define (evaluate-peer a-id req)
+      empty)
+    
+    (define (display-files student a-id)
+      #;(define files (filter (λ (p) (file-exists? p))
+                            #;(directory-list (source-dir) "db" student a-id "uploads" #:build #t)
+                            (directory-list (build-path source-dir "db" student a-id "uploads"))))
+      (define files (directory-list (build-path source-dir "db" student a-id "uploads")))
+      (define (file->html-table file)
+        (define file-lines (string-split (bytes->string/utf-8 
+                                          (file->bytes (build-path source-dir "db" student a-id "uploads" file)))
+                                         #px"\r\n?|\n"
+                                         #:trim? #f))
+        (map displayln file-lines)
+        (define (line->line-content-div line line-num)
+          `(div ([id ,(format "~aLC~a" file line-num)][class "line"]) ,((λ (l)(if (string=? "" l) '(br) l)) line)))
+        `(div ([class "file"])
+              (div ([class "meta"]) ,(format "~a" file))
+              (div ([class "data type-text"])
+                   (table ([class "lines"][cellspacing "0"][cellpadding "0"])
+                          (tbody
+                           (tr
+                            (td
+                             (pre ([class "line_numbers"][style "margin: 0pt; padding-right: 10px;"])
+                                  ,@(map (λ (n) `(span ([id ,(format "~aL~a" file n)]
+                                                        [rel ,(format "#~aL~a" file n)]) 
+                                                       ,(number->string n) (br)))
+                                         (build-list (length file-lines) add1))))
+                            (td ([width "100%"])
+                                (div ([class "highlight"])
+                                     (pre
+                                      ,@(map line->line-content-div file-lines 
+                                             (build-list (length file-lines) add1)))))))))))
+      (send/back
+       (response/xexpr
+        `(html (head (title ,(format "Files for ~a" a-id))
+                 (body (h1 ,(format "Files for ~a" a-id))
+                       (div ([id "files"])
+                            ,@(map file->html-table files))))))))
+          
     
     
     (define (logout req)
@@ -171,24 +218,71 @@
        (list (cookie->header logout-id-cookie))))
     
     (define (render-main)
+      (define a-day (* 60 60 24))
+      (define 2-days (* a-day 2))
+      (define (cond-hyperlink available closed text1 link1 text2 link2)
+        (cond
+          [(< (current-seconds) available)
+           text1]
+          [(> (current-seconds) closed)
+           `(a ([href ,link2]) ,text2)]
+          [else
+           `(a ([href ,link1]) ,text1)]))
+      (define-values (upcoming past)
+        (partition (λ (a) (((assignment-due a) . + . 2-days) . > . (current-seconds)))
+                   (sort assignments < #:key assignment-due)))
+      (define (secs->time-text s);TODO fix nonplurals
+        (define unit
+          (findf (λ (unit-pair) (s . >= . (car unit-pair)))
+                 `((,(* 60 60 24 7) . "week") (,(* 60 60 24) . "day") (,(* 60 60) . "hour") (60 . "minute") (1 . "second"))))
+          (format "~a ~as" (quotient s (car unit)) (cdr unit)))
+      (define (self-eval-completed? a-id user) #f);TODO
+      (define (render-assignment a);TODO render offline assignments (like the final) differently
+        (let ([next-due
+               (+ (assignment-due a)
+                  (cond
+                    [(self-eval-completed? (assignment-id a) (current-user))
+                     2-days]
+                    [(> (current-seconds) (assignment-due a))
+                     a-day]
+                    [else
+                     0]))])
+          `(table (tr (td ,(assignment-title a)) 
+                      (td "0%");TODO
+                      (td ,(format 
+                            "Due ~a in ~a"
+                            (date->string (seconds->date next-due))
+                            (secs->time-text (- next-due (current-seconds))))))
+                  (tr (td ,(cond-hyperlink (current-seconds) (assignment-due a)
+                            "Turn in Files" (main-url manage-files (assignment-id a))
+                            "View Files" (main-url show-root)#|TODO|#))
+                      (td ,(cond-hyperlink (assignment-due a) (+ a-day (assignment-due a))
+                            "Self Evaluation" (main-url evaluate-self (assignment-id a));TODO only if there is 1+ files
+                            "Self Evaluation Details" (main-url show-root)#|TODO|#)) 
+                      (td ,(cond-hyperlink (+ a-day (assignment-due a)) (+ 2-days (assignment-due a))
+                            "Grade a Peer" (main-url evaluate-peer (assignment-id a));TODO only if done self-eval and 1+ files
+                            "Grade a Peer Details" (main-url show-root)#|TODO|#))))))
       (send/suspend/dispatch
        (λ (embed/url)
          (response/xexpr
           `(html (head (title "Student Main Page"))
                  (body (h1 "Student Main Page")
-                       
-                       ))))))
-    (define (render-assignments-student-view)
-      empty)
+                       (div ([id "class-score"]);TODO
+                            (table (tr (th "Mininum Final Grade") (th "Expected Grade") (th "Maximum Final Grade"))
+                                   (tr (td "0%") (td "75%") (td "100%"))))
+                       (div ([id "upcoming-assignments"])
+                            ,@(map render-assignment upcoming))
+                       (div ([id "past-assignments"])
+                            ,@(map render-assignment past))))))))
     
     (define (delete-a-file req a-id file-to-delete)
       (define assignment (findf (λ (a) (string=? a-id (assignment-id a))) assignments))
       (cond
         [(< (current-seconds) (assignment-due assignment))
-            (define file-path (build-path source-dir "db" (current-user) a-id "uploads" file-to-delete))
-            (if (file-exists? file-path)
-                (delete-file file-path)
-                (void))]
+         (define file-path (build-path source-dir "db" (current-user) a-id "uploads" file-to-delete))
+         (if (file-exists? file-path)
+             (delete-file file-path)
+             (void))]
         [else (void)])
       (redirect-to (main-url manage-files a-id)))
     
