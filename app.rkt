@@ -11,6 +11,7 @@
          racket/date
          racket/runtime-path
          racket/string
+         racket/function
          file/md5
          (only-in srfi/13 string-trim-both)
          "model.rkt"
@@ -32,6 +33,8 @@
          #:secret-salt-path 
          [secret-salt-path "secret-salt"])
   (begin
+    (define (id->assignment a-id)
+      (findf (λ (a) (string=? a-id (assignment-id a))) assignments))
     (define (is-admin-username? un) (hash-has-key? admin-users un)); TODO move to model?
     (define (authenticate-admin un pw); TODO move to model?
       (if (is-admin-username? un)
@@ -79,6 +82,9 @@
                        (list (cookie->header (make-id-cookie secret-salt username))))
           (login req (format "Invalid password for user (~S)" username))))
     
+    (define (default-text-input default-string)
+        (to-string (default (string->bytes/utf-8 default-string) 
+                     (text-input #:value (string->bytes/utf-8 default-string)))))
     
     (define (manage-account req)
       
@@ -89,10 +95,6 @@
           [(file-exists? (build-path user-dir "info.rktd"))
            (file->value (build-path user-dir "info.rktd"))]
           [else (student "" "" "" "")]))
-      
-      (define (default-text-input default-string)
-        (to-string (default (string->bytes/utf-8 default-string) 
-                     (text-input #:value (string->bytes/utf-8 default-string)))))
       
       (define account-formlet
         (formlet
@@ -168,47 +170,115 @@
        [("assignment" (string-arg) "peer-eval") evaluate-peer]))
     
     (define (evaluate-self req a-id);TODO put files in iframe - actually ask questions
-      (display-files (current-user) a-id))
+      (define assignment (id->assignment a-id))
+      (define files (directory-list (build-path source-dir "db" (current-user) a-id "uploads")))
+      (define (ask-question q)
+        (define file-lines-formlet
+          (formlet
+           (table (tr (td (p "Which file do you want to highlight?")
+                          ,{(radio-group (append (map path->string files) `("None"))) . => . file}))
+                  (tr (td "Space Separated Line Numbers")
+                      (td ,{(default-text-input "") . => . line-nums})))
+           (values file line-nums)))
+        (define-values (file line-nums)
+          (formlet-process
+           file-lines-formlet
+           (send/suspend
+            (λ (k-url)
+              (template #:breadcrumb (list (cons "Self Evaluation - File" #f));TODO
+                        `(div
+                          (h1 "Relevant Line Selection")
+                          (p "Pick the lines that demonstrate that you deserve credit for the following question:")
+                          (p ,(question-question q))
+                          (form ([action ,k-url] [method "post"]) 
+                                ,@(formlet-display file-lines-formlet)
+                                (input ([type "submit"])))
+                          (div ([id "files"])
+                               ,@(map (λ(file)
+                                        ((curry file->html-table a-id) 
+                                         (build-path source-dir "db" (current-user) a-id "uploads" file))) 
+                                      files))))))))
+        
+        (define self-score-formlet
+          (formlet 
+           (div ,{(radio-group '(1 0) 
+                               #:display (λ (x) (if (= 1 x) "Yes" "No"))) 
+                  . => . credit?})
+           credit?))
+        (define-values (self-score)
+          (formlet-process
+           self-score-formlet
+           (send/suspend
+            (λ  (k-url)
+              (template #:breadcrumb (list (cons "Self Evaluation" #f))
+                        `(div (h1 "Self Evalution")
+                              (p ,(question-question q))
+                              (p "Do the selected lines demonstrate that you deserve credit for this question?")
+                              ;TODO show those lines selected
+                              (form ([action ,k-url] [method "post"])
+                                    ,@(formlet-display (formlet 
+                                                        (div ,{(radio-group '(1 0) 
+                                                                            #:display (λ (x) (if (= 1 x) "Yes" "No"))) 
+                                                               . => . credit?})
+                                                        credit?))
+                                    (input ([type "submit"])))))))))
+        (question-self-eval self-score file (map string->number (string-split line-nums))))
+      
+      (write-to-file #:exists 'replace
+       (for/list ([question (assignment-questions assignment)])
+         (ask-question question))
+       (build-path source-dir "db" (current-user) a-id "self-eval.rktd"))
+      (redirect-to (main-url show-root)))
+    
+    
+    
+    
     (define (evaluate-peer a-id req)
       empty)
     
-    (define (display-files student a-id)
+    (define (file->html-table a-id file)
+      (define (file->name f)
+        (define-values (base name must-be-dir?)
+          (split-path f))
+        (path->string name))
+      (define file-lines (string-split (bytes->string/utf-8 (file->bytes file))
+                                       #px"\r\n?|\n"
+                                       #:trim? #f))
+      (define (line->line-content-div line line-num)
+        `(div ([id ,(format "~aLC~a" file line-num)][class "line"]) 
+              ,((λ (l)(if (string=? "" l) '(br) l)) line)))
+      
+      `(div ([class "file"])
+            (div ([class "meta"]) ,(format "~a" (file->name file)))
+            (div ([class "data type-text"])
+                 (table ([class "lines"][cellspacing "0"][cellpadding "0"])
+                        (tbody
+                         (tr
+                          (td
+                           (pre ([class "line_numbers"][style "margin: 0pt; padding-right: 10px;"])
+                                ,@(map (λ (n) `(span ([id ,(format "~aL~a" file n)]
+                                                      [rel ,(format "#~aL~a" file n)]) 
+                                                     ,(number->string n) (br)))
+                                       (build-list (length file-lines) add1))))
+                          (td ([width "100%"])
+                              (div ([class "highlight"])
+                                   (pre
+                                    ,@(map line->line-content-div file-lines 
+                                           (build-list (length file-lines) add1)))))))))))
+    
+    (define (display-files student a-id select)
       #;(define files (filter (λ (p) (file-exists? p))
-                            #;(directory-list (source-dir) "db" student a-id "uploads" #:build #t)
-                            (directory-list (build-path source-dir "db" student a-id "uploads"))))
+                              #;(directory-list (source-dir) "db" student a-id "uploads" #:build #t)
+                              (directory-list (build-path source-dir "db" student a-id "uploads"))))
       (define files (directory-list (build-path source-dir "db" student a-id "uploads")))
-      (define (file->html-table file)
-        (define file-lines (string-split (bytes->string/utf-8 
-                                          (file->bytes (build-path source-dir "db" student a-id "uploads" file)))
-                                         #px"\r\n?|\n"
-                                         #:trim? #f))
-        (map displayln file-lines)
-        (define (line->line-content-div line line-num)
-          `(div ([id ,(format "~aLC~a" file line-num)][class "line"]) ,((λ (l)(if (string=? "" l) '(br) l)) line)))
-        `(div ([class "file"])
-              (div ([class "meta"]) ,(format "~a" file))
-              (div ([class "data type-text"])
-                   (table ([class "lines"][cellspacing "0"][cellpadding "0"])
-                          (tbody
-                           (tr
-                            (td
-                             (pre ([class "line_numbers"][style "margin: 0pt; padding-right: 10px;"])
-                                  ,@(map (λ (n) `(span ([id ,(format "~aL~a" file n)]
-                                                        [rel ,(format "#~aL~a" file n)]) 
-                                                       ,(number->string n) (br)))
-                                         (build-list (length file-lines) add1))))
-                            (td ([width "100%"])
-                                (div ([class "highlight"])
-                                     (pre
-                                      ,@(map line->line-content-div file-lines 
-                                             (build-list (length file-lines) add1)))))))))))
+      
       (send/back
        (response/xexpr
         `(html (head (title ,(format "Files for ~a" a-id))
-                 (body (h1 ,(format "Files for ~a" a-id))
-                       (div ([id "files"])
-                            ,@(map file->html-table files))))))))
-          
+                     (body (h1 ,(format "Files for ~a" a-id))
+                           (div ([id "files"])
+                                ,@(map file->html-table files))))))))
+    
     
     
     (define (logout req)
@@ -235,7 +305,7 @@
         (define unit
           (findf (λ (unit-pair) (s . >= . (car unit-pair)))
                  `((,(* 60 60 24 7) . "week") (,(* 60 60 24) . "day") (,(* 60 60) . "hour") (60 . "minute") (1 . "second"))))
-          (format "~a ~as" (quotient s (car unit)) (cdr unit)))
+        (format "~a ~as" (quotient s (car unit)) (cdr unit)))
       (define (self-eval-completed? a-id user) #f);TODO
       (define (render-assignment a);TODO render offline assignments (like the final) differently
         (let ([next-due
@@ -254,14 +324,14 @@
                             (date->string (seconds->date next-due))
                             (secs->time-text (- next-due (current-seconds))))))
                   (tr (td ,(cond-hyperlink (current-seconds) (assignment-due a)
-                            "Turn in Files" (main-url manage-files (assignment-id a))
-                            "View Files" (main-url show-root)#|TODO|#))
+                                           "Turn in Files" (main-url manage-files (assignment-id a))
+                                           "View Files" (main-url show-root)#|TODO|#))
                       (td ,(cond-hyperlink (assignment-due a) (+ a-day (assignment-due a))
-                            "Self Evaluation" (main-url evaluate-self (assignment-id a));TODO only if there is 1+ files
-                            "Self Evaluation Details" (main-url show-root)#|TODO|#)) 
+                                           "Self Evaluation" (main-url evaluate-self (assignment-id a));TODO only if there is 1+ files
+                                           "Self Evaluation Details" (main-url show-root)#|TODO|#)) 
                       (td ,(cond-hyperlink (+ a-day (assignment-due a)) (+ 2-days (assignment-due a))
-                            "Grade a Peer" (main-url evaluate-peer (assignment-id a));TODO only if done self-eval and 1+ files
-                            "Grade a Peer Details" (main-url show-root)#|TODO|#))))))
+                                           "Grade a Peer" (main-url evaluate-peer (assignment-id a));TODO only if done self-eval and 1+ files
+                                           "Grade a Peer Details" (main-url show-root)#|TODO|#))))))
       (send/suspend/dispatch
        (λ (embed/url)
          (response/xexpr
