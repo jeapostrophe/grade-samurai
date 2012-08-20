@@ -17,6 +17,31 @@
          "model.rkt"
          "../m8b/id-cookie.rkt")
 
+(define (string->lines s)
+  (string-split s "\n"))
+
+(define (contains-greater-than-80-char-line? file-content)
+  (for/or ([l (in-list (string->lines (bytes->string/utf-8 file-content)))])
+    ((string-length l) . >= . 80)))
+
+(module+ test
+  (require rackunit)
+  (check-equal? (contains-greater-than-80-char-line? #"
+abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
+abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
+abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
+abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
+abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
+abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
+abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
+") #t)
+  (check-equal? (contains-greater-than-80-char-line? #"
+abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
+abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
+abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
+abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
+") #f))
+
 (define-runtime-path source-dir ".")
 
 (define (make-start-handler
@@ -383,10 +408,16 @@
                           (form ([action ,k-url] [method "post"] [enctype "multipart/form-data"])
                                 (table (tr (td (input ([type "file"] [name "new-file"]))) 
                                            (td (input ([type "submit"][value "Add File"])))))))))))))
-      (if (< (current-seconds) (assignment-due assignment))
-          (display-to-file (binding:file-content new-file-binding) 
-                           (build-path files-dir (bytes->string/utf-8 (binding:file-filename new-file-binding))))
-          (void))
+      (define file-content (binding:file-content new-file-binding))
+      (when (contains-greater-than-80-char-line? file-content)
+        (error 'upload-file 
+               "Cannot upload files with lines greater than 80 characters"))
+      (when (< (current-seconds) (assignment-due assignment))
+        (display-to-file
+         file-content
+         (build-path files-dir
+                     (bytes->string/utf-8
+                      (binding:file-filename new-file-binding)))))
       (redirect-to (main-url manage-files a-id)))
     
     
