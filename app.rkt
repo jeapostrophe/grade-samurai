@@ -353,10 +353,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
              (assignment-due-secs a)]))
 
         `(table ([class ,(cond
-                           [(zero? (assignment-normal-weight a))                            
+                           [(not (zero? (assignment-optional-weight a)))                            
                             "optional"]
+                           [(not (zero? (assignment-normal-weight a)))
+                            "normal"]
                            [else
-                            "normal"])])
+                            "optenable"])])
                 (tr (td ,(assignment-id a))
                     (td ,(real->decimal-string
                           (* 100
