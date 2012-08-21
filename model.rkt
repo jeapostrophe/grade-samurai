@@ -8,6 +8,9 @@
 (struct question-self-eval
   (self-score file line-number) #:prefab);TODO merge file and line-number
 
+(struct peer-grading-struct
+  (peer-id question-grades) #:prefab)
+
 (struct student (nickname firstname lastname email) #:prefab)
 
 (provide (all-defined-out))

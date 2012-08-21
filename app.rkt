@@ -196,7 +196,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        [("assignment" (string-arg) "self-eval") evaluate-self]
        [("assignment" (string-arg) "view-self-eval") show-self]
        [("assignment" (string-arg) "peer-eval") evaluate-peer]
-       [("assignment" (string-arg) "view-eval") show-peer]))
+       [("assignment" (string-arg) "view-eval") show-peer]
+       [("assignment" (string-arg) "peer-eval" "next-question") evaluate-peer]))
 
     (define (view-files req a-id)
       (error 'XXX))
@@ -252,11 +253,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                               (p "Do the selected lines demonstrate that you deserve credit for this question?")
                                         ;TODO show those lines selected
                               (form ([action ,k-url] [method "post"])
-                                    ,@(formlet-display (formlet
-                                                        (div ,{(radio-group '(1 0)
-                                                                            #:display (λ (x) (if (= 1 x) "Yes" "No")))
-                                                               . => . credit?})
-                                                        credit?))
+
+                                    ,@(formlet-display self-score-formlet)
                                     (input ([type "submit"])))))))))
         (question-self-eval self-score file (map string->number (string-split line-nums))))
 
@@ -265,11 +263,42 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                        (ask-question question))
                      (build-path source-dir "db" (current-user) a-id "self-eval.rktd"))
       (redirect-to (main-url show-root)))
-
-
-
-
-    (define (evaluate-peer a-id req)
+    
+    #;(define (page/grade-next-question)
+      (define unanswered (filter (negate (curry user-has-answer? u)) questions))
+      (if (empty? un...)
+          "Done!"
+          (ask-question (first un...))))
+    
+    (define (peer/grade-next-question req a-id)
+      (define peer-grading-path (build-path source-dir "db" (current-user) a-id))
+      (match-define (peer-grading-struct peer-id answers)
+        (if (file-exists? peer-grading-path)
+            (file->value peer-grading-path)
+            (peer-grading-struct (pick-a-person)#|TODO|# empty)))
+      (define ungraded (drop questions (length answers)))
+      (if (empty? ungraded)
+          "Done!" ;redirect to main page
+          (grade-question peer-id a-id (first ungraded))))
+    
+    
+    
+    (define (evaluate-peer req a-id)
+      empty)
+    
+    (define (grade-question stu a-id question q-self-eval)
+      (define question-formlet
+        (formlet
+         (div
+          ,(if (eq? (question-type question) 'range)
+               `(div
+                 (p (format "The student thought they deserved ~a" ))
+                 
+                 ,{(to-number (text-input)) . => . range}
+               {(
+         
+      ;define formlet, send/suspend formlet, if admin- append in stu's dir, else append to current-user's peer-eval
+      ;redirect to grade-next-question
       empty)
 
     (define (file->html-table a-id file)
@@ -303,6 +332,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                            (build-list (length file-lines) add1)))))))))))
 
     (define (display-files student a-id select)
+<<<<<<< Updated upstream
       (define files (directory-list (build-path source-dir "db" student a-id "uploads")))
 
       (send/back
