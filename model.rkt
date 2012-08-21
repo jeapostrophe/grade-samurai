@@ -2,10 +2,9 @@
 (require racket/date
          racket/serialize)
 
-(struct assignment 
-  (title id optional? start due question-weight peer-review-weight questions) #:transparent)
-(struct question 
-  (type weight question answers) #:transparent)
+(struct assignment (normal-weight optional-weight id due-secs eval-secs peer-secs questions) #:prefab)
+(struct question (normal-weight optional-weight prompt type) #:prefab)
+
 (struct question-self-eval
   (self-score file line-number) #:prefab);TODO merge file and line-number
 

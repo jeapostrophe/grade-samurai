@@ -47,7 +47,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 (define (make-start-handler
          #:admin-users-hash
          [admin-users (hash)]
-         #:assignment-list 
+         #:assignment-list
          [assignments empty]
          #:authenticate-users-with
          [authenticate-users (λ (un pw) #f)]
@@ -55,7 +55,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          [login-formlet-un-text "Username: "]
          #:password-request-text
          [login-formlet-pw-text "Password: "]
-         #:secret-salt-path 
+         #:secret-salt-path
          [secret-salt-path "secret-salt"])
   (begin
     (define (id->assignment a-id)
@@ -63,15 +63,15 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (define (is-admin-username? un) (hash-has-key? admin-users un)); TODO move to model?
     (define (authenticate-admin un pw); TODO move to model?
       (if (is-admin-username? un)
-          (string=? pw (hash-ref admin-users un))
-          #f))
+        (string=? pw (hash-ref admin-users un))
+        #f))
     (define secret-salt (file->bytes secret-salt-path))
-    
+
     (define (show-root req)
-      (if (is-admin-username? (current-user)) 
-          (render-admin)
-          (render-main)))
-    
+      (if (is-admin-username? (current-user))
+        (render-admin)
+        (render-main)))
+
     (define (login req [last-error #f])
       (define login-formlet
         (formlet
@@ -91,36 +91,36 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                         ,@(formlet-display login-formlet)
                         (input ([type "submit"] [value "Log in"])))
                   ,@(if last-error
-                        `((h1 ([class "error"]) ,last-error))
-                        '()))))))
-      (define-values (username password) 
+                      `((h1 ([class "error"]) ,last-error))
+                      '()))))))
+      (define-values (username password)
         (formlet-process login-formlet log-req))
-      
+
       (define authenticated?
         (if (is-admin-username? username)
-            (authenticate-admin username password)
-            (authenticate-users username password)))
-      
+          (authenticate-admin username password)
+          (authenticate-users username password)))
+
       (if authenticated?
-          (redirect-to (main-url show-root)
-                       #:headers
-                       (list (cookie->header (make-id-cookie secret-salt username))))
-          (login req (format "Invalid password for user (~S)" username))))
-    
+        (redirect-to (main-url show-root)
+                     #:headers
+                     (list (cookie->header (make-id-cookie secret-salt username))))
+        (login req (format "Invalid password for user (~S)" username))))
+
     (define (default-text-input default-string)
-        (to-string (default (string->bytes/utf-8 default-string) 
-                     (text-input #:value (string->bytes/utf-8 default-string)))))
-    
+      (to-string (default (string->bytes/utf-8 default-string)
+                   (text-input #:value (string->bytes/utf-8 default-string)))))
+
     (define (manage-account req)
-      
+
       (define user-dir (build-path source-dir "db" (current-user)))
-      
-      (define existing-info 
+
+      (define existing-info
         (cond
           [(file-exists? (build-path user-dir "info.rktd"))
            (file->value (build-path user-dir "info.rktd"))]
           [else (student "" "" "" "")]))
-      
+
       (define account-formlet
         (formlet
          (div ([id "form-inputs"])
@@ -136,7 +136,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                (tr (td "Picture I can be recognized by: ")
                    (td ,{(file-upload) . => . photo}))))
          (values first-name last-name nick-name email photo)))
-      
+
       (define account-form
         (send/suspend
          (λ (k-url)
@@ -150,23 +150,23 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                            (img ([src ,(main-url view-student-photo (current-user))]
                                  [width "160"] [height "160"])))
                         (input ([type "submit"] [value "Update Info"]))))))))
-      
-      (define-values (first-name last-name nick-name email photo) 
+
+      (define-values (first-name last-name nick-name email photo)
         (formlet-process account-formlet account-form))
-      
+
       (make-directory* user-dir)
-      (write-to-file (student nick-name first-name last-name email) 
+      (write-to-file (student nick-name first-name last-name email)
                      (build-path user-dir "info.rktd") #:exists 'replace)
       (if (binding:file? photo)
-          (display-to-file (binding:file-content photo)
-                           (build-path user-dir "photo.jpg") #:exists 'replace)
-          (void))
-      
+        (display-to-file (binding:file-content photo)
+                         (build-path user-dir "photo.jpg") #:exists 'replace)
+        (void))
+
       (redirect-to (main-url show-root))) ;TODO redirect to student page?
-    
-    
+
+
     (define (view-student req student)
-      (cond 
+      (cond
         [(or (is-admin-username? (current-user))
              (string=? (current-user) student))
          (send/suspend/dispatch
@@ -174,13 +174,13 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             (response/xexpr
              `(html (head (title ,student))
                     (body (h1 "Student Page for " ,student))))))]
-        [else 
-         (send/suspend/dispatch 
-          (λ (e) 
+        [else
+         (send/suspend/dispatch
+          (λ (e)
             (response/xexpr
              `(html (head (title ,student))
                     (body (h1 "You do not have permission to view other student's pages."))))))]))
-    
+
     (define-values (main-dispatch main-url main-applies?)
       (dispatch-rules+applies
        [("") show-root]
@@ -193,7 +193,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        [("assignment" (string-arg) "manage-files" "delete" (string-arg)) delete-a-file]
        [("assignment" (string-arg) "self-eval") evaluate-self]
        [("assignment" (string-arg) "peer-eval") evaluate-peer]))
-    
+
     (define (evaluate-self req a-id);TODO put files in iframe - actually ask questions
       (define assignment (id->assignment a-id))
       (define files (directory-list (build-path source-dir "db" (current-user) a-id "uploads")))
@@ -214,20 +214,20 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                         `(div
                           (h1 "Relevant Line Selection")
                           (p "Pick the lines that demonstrate that you deserve credit for the following question:")
-                          (p ,(question-question q))
-                          (form ([action ,k-url] [method "post"]) 
+                          (p ,(question-prompt q))
+                          (form ([action ,k-url] [method "post"])
                                 ,@(formlet-display file-lines-formlet)
                                 (input ([type "submit"])))
                           (div ([id "files"])
                                ,@(map (λ(file)
-                                        ((curry file->html-table a-id) 
-                                         (build-path source-dir "db" (current-user) a-id "uploads" file))) 
+                                        ((curry file->html-table a-id)
+                                         (build-path source-dir "db" (current-user) a-id "uploads" file)))
                                       files))))))))
-        
+
         (define self-score-formlet
-          (formlet 
-           (div ,{(radio-group '(1 0) 
-                               #:display (λ (x) (if (= 1 x) "Yes" "No"))) 
+          (formlet
+           (div ,{(radio-group '(1 0)
+                               #:display (λ (x) (if (= 1 x) "Yes" "No")))
                   . => . credit?})
            credit?))
         (define-values (self-score)
@@ -237,30 +237,30 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             (λ  (k-url)
               (template #:breadcrumb (list (cons "Self Evaluation" #f))
                         `(div (h1 "Self Evalution")
-                              (p ,(question-question q))
+                              (p ,(question-prompt q))
                               (p "Do the selected lines demonstrate that you deserve credit for this question?")
-                              ;TODO show those lines selected
+                                        ;TODO show those lines selected
                               (form ([action ,k-url] [method "post"])
-                                    ,@(formlet-display (formlet 
-                                                        (div ,{(radio-group '(1 0) 
-                                                                            #:display (λ (x) (if (= 1 x) "Yes" "No"))) 
+                                    ,@(formlet-display (formlet
+                                                        (div ,{(radio-group '(1 0)
+                                                                            #:display (λ (x) (if (= 1 x) "Yes" "No")))
                                                                . => . credit?})
                                                         credit?))
                                     (input ([type "submit"])))))))))
         (question-self-eval self-score file (map string->number (string-split line-nums))))
-      
+
       (write-to-file #:exists 'replace
-       (for/list ([question (assignment-questions assignment)])
-         (ask-question question))
-       (build-path source-dir "db" (current-user) a-id "self-eval.rktd"))
+                     (for/list ([question (assignment-questions assignment)])
+                       (ask-question question))
+                     (build-path source-dir "db" (current-user) a-id "self-eval.rktd"))
       (redirect-to (main-url show-root)))
-    
-    
-    
-    
+
+
+
+
     (define (evaluate-peer a-id req)
       empty)
-    
+
     (define (file->html-table a-id file)
       (define (file->name f)
         (define-values (base name must-be-dir?)
@@ -270,9 +270,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                        #px"\r\n?|\n"
                                        #:trim? #f))
       (define (line->line-content-div line line-num)
-        `(div ([id ,(format "~aLC~a" file line-num)][class "line"]) 
+        `(div ([id ,(format "~aLC~a" file line-num)][class "line"])
               ,((λ (l)(if (string=? "" l) '(br) l)) line)))
-      
+
       `(div ([class "file"])
             (div ([class "meta"]) ,(format "~a" (file->name file)))
             (div ([class "data type-text"])
@@ -282,36 +282,36 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                           (td
                            (pre ([class "line_numbers"][style "margin: 0pt; padding-right: 10px;"])
                                 ,@(map (λ (n) `(span ([id ,(format "~aL~a" file n)]
-                                                      [rel ,(format "#~aL~a" file n)]) 
+                                                      [rel ,(format "#~aL~a" file n)])
                                                      ,(number->string n) (br)))
                                        (build-list (length file-lines) add1))))
                           (td ([width "100%"])
                               (div ([class "highlight"])
                                    (pre
-                                    ,@(map line->line-content-div file-lines 
+                                    ,@(map line->line-content-div file-lines
                                            (build-list (length file-lines) add1)))))))))))
-    
+
     (define (display-files student a-id select)
       #;(define files (filter (λ (p) (file-exists? p))
-                              #;(directory-list (source-dir) "db" student a-id "uploads" #:build #t)
-                              (directory-list (build-path source-dir "db" student a-id "uploads"))))
+      #;(directory-list (source-dir) "db" student a-id "uploads" #:build #t)
+      (directory-list (build-path source-dir "db" student a-id "uploads"))))
       (define files (directory-list (build-path source-dir "db" student a-id "uploads")))
-      
+
       (send/back
        (response/xexpr
         `(html (head (title ,(format "Files for ~a" a-id))
                      (body (h1 ,(format "Files for ~a" a-id))
                            (div ([id "files"])
                                 ,@(map file->html-table files))))))))
-    
-    
-    
+
+
+
     (define (logout req)
       (redirect-to
        (main-url show-root)
        #:headers
        (list (cookie->header logout-id-cookie))))
-    
+
     (define (render-main)
       (define a-day (* 60 60 24))
       (define 2-days (* a-day 2))
@@ -324,8 +324,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           [else
            `(a ([href ,link1]) ,text1)]))
       (define-values (upcoming past)
-        (partition (λ (a) (((assignment-due a) . + . 2-days) . > . (current-seconds)))
-                   (sort assignments < #:key assignment-due)))
+        (partition (λ (a) (((assignment-due-secs a) . + . 2-days) . > . (current-seconds)))
+                   (sort assignments < #:key assignment-due-secs)))
       (define (secs->time-text s);TODO fix nonplurals
         (define unit
           (findf (λ (unit-pair) (s . >= . (car unit-pair)))
@@ -333,30 +333,30 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         (format "~a ~as" (quotient s (car unit)) (cdr unit)))
       (define (self-eval-completed? a-id user) #f);TODO
       (define (render-assignment a);TODO render offline assignments (like the final) differently
-        (let ([next-due
-               (+ (assignment-due a)
-                  (cond
-                    [(self-eval-completed? (assignment-id a) (current-user))
-                     2-days]
-                    [(> (current-seconds) (assignment-due a))
-                     a-day]
-                    [else
-                     0]))])
-          `(table (tr (td ,(assignment-title a)) 
-                      (td "0%");TODO
-                      (td ,(format 
-                            "Due ~a in ~a"
-                            (date->string (seconds->date next-due))
-                            (secs->time-text (- next-due (current-seconds))))))
-                  (tr (td ,(cond-hyperlink (current-seconds) (assignment-due a)
-                                           "Turn in Files" (main-url manage-files (assignment-id a))
-                                           "View Files" (main-url show-root)#|TODO|#))
-                      (td ,(cond-hyperlink (assignment-due a) (+ a-day (assignment-due a))
-                                           "Self Evaluation" (main-url evaluate-self (assignment-id a));TODO only if there is 1+ files
-                                           "Self Evaluation Details" (main-url show-root)#|TODO|#)) 
-                      (td ,(cond-hyperlink (+ a-day (assignment-due a)) (+ 2-days (assignment-due a))
-                                           "Grade a Peer" (main-url evaluate-peer (assignment-id a));TODO only if done self-eval and 1+ files
-                                           "Grade a Peer Details" (main-url show-root)#|TODO|#))))))
+        (define next-due
+          (cond
+            [(self-eval-completed? (assignment-id a) (current-user))
+             (assignment-peer-secs a)]
+            [(> (current-seconds) (assignment-due-secs a))
+             (assignment-eval-secs a)]
+            [else
+             (assignment-due-secs a)]))
+
+        `(table (tr (td ,(assignment-id a))
+                    (td "0%");TODO
+                    (td ,(format
+                          "Due ~a in ~a"
+                          (date->string (seconds->date next-due))
+                          (secs->time-text (- next-due (current-seconds))))))
+                (tr (td ,(cond-hyperlink (current-seconds) (assignment-due-secs a)
+                                         "Turn in Files" (main-url manage-files (assignment-id a))
+                                         "View Files" (main-url show-root)#|TODO|#))
+                    (td ,(cond-hyperlink (assignment-due-secs a) (assignment-eval-secs a)
+                                         "Self Evaluation" (main-url evaluate-self (assignment-id a));TODO only if there is 1+ files
+                                         "Self Evaluation Details" (main-url show-root)#|TODO|#))
+                    (td ,(cond-hyperlink (assignment-eval-secs a) (assignment-peer-secs a)
+                                         "Grade a Peer" (main-url evaluate-peer (assignment-id a));TODO only if done self-eval and 1+ files
+                                         "Grade a Peer Details" (main-url show-root)#|TODO|#)))))
       (send/suspend/dispatch
        (λ (embed/url)
          (response/xexpr
@@ -369,18 +369,18 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                             ,@(map render-assignment upcoming))
                        (div ([id "past-assignments"])
                             ,@(map render-assignment past))))))))
-    
+
     (define (delete-a-file req a-id file-to-delete)
       (define assignment (findf (λ (a) (string=? a-id (assignment-id a))) assignments))
       (cond
-        [(< (current-seconds) (assignment-due assignment))
+        [(< (current-seconds) (assignment-due-secs assignment))
          (define file-path (build-path source-dir "db" (current-user) a-id "uploads" file-to-delete))
          (if (file-exists? file-path)
-             (delete-file file-path)
-             (void))]
+           (delete-file file-path)
+           (void))]
         [else (void)])
       (redirect-to (main-url manage-files a-id)))
-    
+
     (define (manage-files req a-id)
       (define assignment (findf (λ (a) (string=? a-id (assignment-id a))) assignments))
       (define files-dir (build-path source-dir "db" (current-user) a-id "uploads"))
@@ -394,11 +394,11 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             (response/xexpr
              `(html (head (title ,(format "Manage Files - ~a" a-id)))
                     (body (h1 ,(format "Manage Files for ~a" a-id))
-                          (p ,(let ([seconds-left (- (assignment-due assignment) (current-seconds))])
+                          (p ,(let ([seconds-left (- (assignment-due-secs assignment) (current-seconds))])
                                 (format "File Management for ~a ~a" a-id
                                         (if (seconds-left . < . 0)
-                                            "is closed"
-                                            (format "closes in ~a seconds" seconds-left)))))
+                                          "is closed"
+                                          (format "closes in ~a seconds" seconds-left)))))
                           (table
                            (tr (th "Filename") (th "Delete?"))
                            ,@(map (λ (file-path)
@@ -406,54 +406,54 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                          (td (a ([href ,(main-url delete-a-file a-id (path->string file-path))]) "X"))))
                                   (directory-list files-dir)))
                           (form ([action ,k-url] [method "post"] [enctype "multipart/form-data"])
-                                (table (tr (td (input ([type "file"] [name "new-file"]))) 
+                                (table (tr (td (input ([type "file"] [name "new-file"])))
                                            (td (input ([type "submit"][value "Add File"])))))))))))))
       (define file-content (binding:file-content new-file-binding))
       (when (contains-greater-than-80-char-line? file-content)
-        (error 'upload-file 
+        (error 'upload-file
                "Cannot upload files with lines greater than 80 characters"))
-      (when (< (current-seconds) (assignment-due assignment))
+      (when (< (current-seconds) (assignment-due-secs assignment))
         (display-to-file
          file-content
          (build-path files-dir
                      (bytes->string/utf-8
                       (binding:file-filename new-file-binding)))))
       (redirect-to (main-url manage-files a-id)))
-    
-    
+
+
     (define (template #:breadcrumb bc
                       . bodies)
       (response/xexpr
        `(html (head (title ,@(add-between (map car bc) " / "))
                     #;(script ([src "/sorttable.js"]) " ")
                     #;(link ([rel "stylesheet"] [type "text/css"] [href "/render.css"])))
-              (body 
+              (body
                (div ([class "breadcrumb"])
                     ,@(for/list ([b (in-list bc)])
                         (match-define (cons name url) b)
                         (if url
-                            `(span (a ([href ,url]) ,name) " / ")
-                            `(span ([class "this"]) ,name)))
+                          `(span (a ([href ,url]) ,name) " / ")
+                          `(span ([class "this"]) ,name)))
                     ,(if (current-user)
-                         `(span ([id "logout"]) 
-                                ,(current-user) " | "
-                                #|,@(if (next-applicant?)
-                                  (list `(a ([href ,(top-url next-app)]) "next") " | ")
-                                  empty)|#
-                                ;(a ([href ,(top-url archive)]) "archive") " | "
-                                (a ([href ,(main-url logout)]) "logout"))
-                         ""))
+                       `(span ([id "logout"])
+                              ,(current-user) " | "
+                              #|,@(if (next-applicant?)
+                              (list `(a ([href ,(top-url next-app)]) "next") " | ")
+                              empty)|#
+                                        ;(a ([href ,(top-url archive)]) "archive") " | "
+                              (a ([href ,(main-url logout)]) "logout"))
+                       ""))
                (div ([class "content"])
                     ,@bodies
                     ,(footer))))))
-    
+
     (define (require-login-then-dispatch req)
-      (cond 
+      (cond
         [(main-applies? req)
          (define maybe-id (request-valid-id-cookie secret-salt req))
          (match maybe-id
            [#f (login req)]
-           [id (parameterize ([current-user id]) 
+           [id (parameterize ([current-user id])
                  (main-dispatch req))])]
         [else (next-dispatcher)])))
   require-login-then-dispatch)
@@ -461,18 +461,18 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 (define (view-student-photo req student)
   (define user-img-path (build-path source-dir "db" student "photo.jpg"))
   (define user-info-path (build-path source-dir "db" student "info.rktd"))
-  (define user-email 
+  (define user-email
     (if (file-exists? user-info-path)
-        (student-email (file->value user-info-path))
-        ""))
+      (student-email (file->value user-info-path))
+      ""))
   (if (file-exists? user-img-path)
-      (response/full
-       200 #"Okay"
-       (current-seconds) #"image/jpg"
-       empty
-       (list (file->bytes user-img-path)))
-      (redirect-to (format "http://www.gravatar.com/avatar/~a?s=160&d=mm" 
-                           (md5 (string-downcase (string-trim-both user-email)))))))
+    (response/full
+     200 #"Okay"
+     (current-seconds) #"image/jpg"
+     empty
+     (list (file->bytes user-img-path)))
+    (redirect-to (format "http://www.gravatar.com/avatar/~a?s=160&d=mm"
+                         (md5 (string-downcase (string-trim-both user-email)))))))
 
 (define (render-admin)
   (send/suspend/dispatch
@@ -486,7 +486,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 (define (footer)
   `(div ([id "footer"])
         "Powered by " (a ([href "http://racket-lang.org/"]) "Racket") ". "
-        "Written by " (a ([href "http://trevoroakes.com/"]) "Trevor Oakes") " and " 
+        "Written by " (a ([href "http://trevoroakes.com/"]) "Trevor Oakes") " and "
         (a ([href "http://faculty.cs.byu.edu/~jay"]) "Jay McCarthy") ". "))
 
 (define (tabs header . the-tabs)
@@ -497,7 +497,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                     (define id (symbol->string (gensym)))
                     (define label (list-ref the-tabs (* 2 i)))
                     (define body (list-ref the-tabs (add1 (* 2 i))))
-                    (define no-content? 
+                    (define no-content?
                       (and (string? body)
                            (string=? "" body)))
                     (define selected?
@@ -537,8 +537,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                 [_ #f]))
             `(div ([id ,id]
                    [style ,(if selected?
-                               "display: block"
-                               "display: none")]
+                             "display: block"
+                             "display: none")]
                    [class "tab-content"])
                   ,(if direct-link "" body)))))
 
