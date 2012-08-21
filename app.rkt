@@ -42,7 +42,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 ") #f))
 
+;; XXX don't use this as db root, pass it in
 (define-runtime-path source-dir ".")
+
+(define samurai-static (build-path source-dir "static"))
 
 (define (make-start-handler
          #:admin-users-hash
@@ -171,15 +174,13 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
              (string=? (current-user) student))
          (send/suspend/dispatch
           (λ (embed/url)
-            (response/xexpr
-             `(html (head (title ,student))
-                    (body (h1 "Student Page for " ,student))))))]
+            (template #:breadcrumb (list (cons student #f))
+                      `(h1 "Student Page for " ,student))))]
         [else
          (send/suspend/dispatch
           (λ (e)
-            (response/xexpr
-             `(html (head (title ,student))
-                    (body (h1 "You do not have permission to view other student's pages."))))))]))
+            (template #:breadcrumb (list (cons student #f))
+                      `(h1 "You do not have permission to view other student's pages."))))]))
 
     (define-values (main-dispatch main-url main-applies?)
       (dispatch-rules+applies
@@ -191,10 +192,20 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        [("student" (string-arg) "photo") view-student-photo]
        [("assignment" (string-arg) "manage-files") manage-files]
        [("assignment" (string-arg) "manage-files" "delete" (string-arg)) delete-a-file]
+       [("assignment" (string-arg) "view-files") view-files]
        [("assignment" (string-arg) "self-eval") evaluate-self]
-       [("assignment" (string-arg) "peer-eval") evaluate-peer]))
+       [("assignment" (string-arg) "view-self-eval") show-self]
+       [("assignment" (string-arg) "peer-eval") evaluate-peer]
+       [("assignment" (string-arg) "view-eval") show-peer]))
 
-    (define (evaluate-self req a-id);TODO put files in iframe - actually ask questions
+    (define (view-files req a-id)
+      (error 'XXX))
+    (define (show-self req a-id)
+      (error 'XXX))
+    (define (show-peer req a-id)
+      (error 'XXX))
+
+    (define (evaluate-self req a-id) ;; XXX put files in iframe - actually ask questions
       (define assignment (id->assignment a-id))
       (define files (directory-list (build-path source-dir "db" (current-user) a-id "uploads")))
       (define (ask-question q)
@@ -210,7 +221,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
            file-lines-formlet
            (send/suspend
             (λ (k-url)
-              (template #:breadcrumb (list (cons "Self Evaluation - File" #f));TODO
+              (template #:breadcrumb (list (cons "Self Evaluation - File" #f)) ;; XXX
                         `(div
                           (h1 "Relevant Line Selection")
                           (p "Pick the lines that demonstrate that you deserve credit for the following question:")
@@ -292,19 +303,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                            (build-list (length file-lines) add1)))))))))))
 
     (define (display-files student a-id select)
-      #;(define files (filter (λ (p) (file-exists? p))
-      #;(directory-list (source-dir) "db" student a-id "uploads" #:build #t)
-      (directory-list (build-path source-dir "db" student a-id "uploads"))))
       (define files (directory-list (build-path source-dir "db" student a-id "uploads")))
 
       (send/back
-       (response/xexpr
-        `(html (head (title ,(format "Files for ~a" a-id))
-                     (body (h1 ,(format "Files for ~a" a-id))
-                           (div ([id "files"])
-                                ,@(map file->html-table files))))))))
-
-
+       (template #:breadcrumb (list (cons (format "Files for ~a" a-id) #f))
+                 `(div ([id "files"])
+                       ,@(map file->html-table files)))))
 
     (define (logout req)
       (redirect-to
@@ -317,6 +321,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (define 2-days (* a-day 2))
       (define (cond-hyperlink available closed text1 link1 text2 link2)
         (cond
+          [(or (not available) (not closed))
+           ""]
           [(< (current-seconds) available)
            text1]
           [(> (current-seconds) closed)
@@ -329,7 +335,11 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (define (secs->time-text s);TODO fix nonplurals
         (define unit
           (findf (λ (unit-pair) (s . >= . (car unit-pair)))
-                 `((,(* 60 60 24 7) . "week") (,(* 60 60 24) . "day") (,(* 60 60) . "hour") (60 . "minute") (1 . "second"))))
+                 `((,(* 60 60 24 7) . "week")
+                   (,(* 60 60 24) . "day")
+                   (,(* 60 60) . "hour")
+                   (60 . "minute")
+                   (1 . "second"))))
         (format "~a ~as" (quotient s (car unit)) (cdr unit)))
       (define (self-eval-completed? a-id user) #f);TODO
       (define (render-assignment a);TODO render offline assignments (like the final) differently
@@ -342,33 +352,44 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             [else
              (assignment-due-secs a)]))
 
-        `(table (tr (td ,(assignment-id a))
-                    (td "0%");TODO
+        `(table ([class ,(cond
+                           [(zero? (assignment-normal-weight a))                            
+                            "optional"]
+                           [else
+                            "normal"])])
+                (tr (td ,(assignment-id a))
+                    (td ,(real->decimal-string
+                          (* 100
+                             (+ (assignment-normal-weight a)
+                                (assignment-optional-weight a)))
+                          4)
+                        "%")
                     (td ,(format
                           "Due ~a in ~a"
                           (date->string (seconds->date next-due))
                           (secs->time-text (- next-due (current-seconds))))))
-                (tr (td ,(cond-hyperlink (current-seconds) (assignment-due-secs a)
-                                         "Turn in Files" (main-url manage-files (assignment-id a))
-                                         "View Files" (main-url show-root)#|TODO|#))
-                    (td ,(cond-hyperlink (assignment-due-secs a) (assignment-eval-secs a)
-                                         "Self Evaluation" (main-url evaluate-self (assignment-id a));TODO only if there is 1+ files
-                                         "Self Evaluation Details" (main-url show-root)#|TODO|#))
-                    (td ,(cond-hyperlink (assignment-eval-secs a) (assignment-peer-secs a)
-                                         "Grade a Peer" (main-url evaluate-peer (assignment-id a));TODO only if done self-eval and 1+ files
-                                         "Grade a Peer Details" (main-url show-root)#|TODO|#)))))
+                (tr (td ,(cond-hyperlink
+                          (current-seconds) (assignment-due-secs a)
+                          "Turn in Files" (main-url manage-files (assignment-id a))
+                          "View Files" (main-url view-files (assignment-id a))))
+                    (td ,(cond-hyperlink
+                          (assignment-due-secs a) (assignment-eval-secs a)
+                          "Self Evaluation" (main-url evaluate-self (assignment-id a))
+                          "Self Evaluation Details" (main-url show-self (assignment-id a))))
+                    (td ,(cond-hyperlink
+                          (assignment-eval-secs a) (assignment-peer-secs a)
+                          "Grade a Peer" (main-url evaluate-peer (assignment-id a))
+                          "Grade a Peer Details" (main-url show-peer (assignment-id a)))))))
       (send/suspend/dispatch
        (λ (embed/url)
-         (response/xexpr
-          `(html (head (title "Student Main Page"))
-                 (body (h1 "Student Main Page")
-                       (div ([id "class-score"]);TODO
-                            (table (tr (th "Mininum Final Grade") (th "Expected Grade") (th "Maximum Final Grade"))
-                                   (tr (td "0%") (td "75%") (td "100%"))))
-                       (div ([id "upcoming-assignments"])
-                            ,@(map render-assignment upcoming))
-                       (div ([id "past-assignments"])
-                            ,@(map render-assignment past))))))))
+         (template #:breadcrumb (list (cons "Student Main Page" #f))
+                   `(div ([id "class-score"]);TODO
+                         (table (tr (th "Mininum Final Grade") (th "Expected Grade") (th "Maximum Final Grade"))
+                                (tr (td "0%") (td "75%") (td "100%"))))
+                   `(div ([id "upcoming-assignments"])
+                         ,@(map render-assignment upcoming))
+                   `(div ([id "past-assignments"])
+                         ,@(map render-assignment past))))))
 
     (define (delete-a-file req a-id file-to-delete)
       (define assignment (findf (λ (a) (string=? a-id (assignment-id a))) assignments))
@@ -391,23 +412,21 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         (extract-binding:file
          (send/suspend
           (λ (k-url)
-            (response/xexpr
-             `(html (head (title ,(format "Manage Files - ~a" a-id)))
-                    (body (h1 ,(format "Manage Files for ~a" a-id))
-                          (p ,(let ([seconds-left (- (assignment-due-secs assignment) (current-seconds))])
-                                (format "File Management for ~a ~a" a-id
-                                        (if (seconds-left . < . 0)
-                                          "is closed"
-                                          (format "closes in ~a seconds" seconds-left)))))
-                          (table
-                           (tr (th "Filename") (th "Delete?"))
-                           ,@(map (λ (file-path)
-                                    `(tr (td ,(path->string file-path))
-                                         (td (a ([href ,(main-url delete-a-file a-id (path->string file-path))]) "X"))))
-                                  (directory-list files-dir)))
-                          (form ([action ,k-url] [method "post"] [enctype "multipart/form-data"])
-                                (table (tr (td (input ([type "file"] [name "new-file"])))
-                                           (td (input ([type "submit"][value "Add File"])))))))))))))
+            (template #:breadcrumb (list (cons (format "Manage Files - ~a" a-id) #f))
+                      `(p ,(let ([seconds-left (- (assignment-due-secs assignment) (current-seconds))])
+                             (format "File Management for ~a ~a" a-id
+                                     (if (seconds-left . < . 0)
+                                       "is closed"
+                                       (format "closes in ~a seconds" seconds-left)))))
+                      `(table
+                        (tr (th "Filename") (th "Delete?"))
+                        ,@(map (λ (file-path)
+                                 `(tr (td ,(path->string file-path))
+                                      (td (a ([href ,(main-url delete-a-file a-id (path->string file-path))]) "X"))))
+                               (directory-list files-dir)))
+                      `(form ([action ,k-url] [method "post"] [enctype "multipart/form-data"])
+                             (table (tr (td (input ([type "file"] [name "new-file"])))
+                                        (td (input ([type "submit"][value "Add File"])))))))))))
       (define file-content (binding:file-content new-file-binding))
       (when (contains-greater-than-80-char-line? file-content)
         (error 'upload-file
@@ -420,13 +439,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                       (binding:file-filename new-file-binding)))))
       (redirect-to (main-url manage-files a-id)))
 
-
     (define (template #:breadcrumb bc
                       . bodies)
       (response/xexpr
        `(html (head (title ,@(add-between (map car bc) " / "))
                     #;(script ([src "/sorttable.js"]) " ")
-                    #;(link ([rel "stylesheet"] [type "text/css"] [href "/render.css"])))
+                    (link ([rel "stylesheet"] [type "text/css"] [href "/style.css"])))
               (body
                (div ([class "breadcrumb"])
                     ,@(for/list ([b (in-list bc)])
@@ -437,15 +455,93 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                     ,(if (current-user)
                        `(span ([id "logout"])
                               ,(current-user) " | "
-                              #|,@(if (next-applicant?)
-                              (list `(a ([href ,(top-url next-app)]) "next") " | ")
-                              empty)|#
-                                        ;(a ([href ,(top-url archive)]) "archive") " | "
                               (a ([href ,(main-url logout)]) "logout"))
                        ""))
                (div ([class "content"])
                     ,@bodies
                     ,(footer))))))
+
+    (define (view-student-photo req student)
+      (define user-img-path (build-path source-dir "db" student "photo.jpg"))
+      (define user-info-path (build-path source-dir "db" student "info.rktd"))
+      (define user-email
+        (if (file-exists? user-info-path)
+          (student-email (file->value user-info-path))
+          ""))
+      (if (file-exists? user-img-path)
+        (response/full
+         200 #"Okay"
+         (current-seconds) #"image/jpg"
+         empty
+         (list (file->bytes user-img-path)))
+        (redirect-to (format "http://www.gravatar.com/avatar/~a?s=160&d=mm"
+                             (md5 (string-downcase (string-trim-both user-email)))))))
+
+    (define (render-admin)
+      (send/suspend/dispatch
+       (λ (embed/url)
+         (template #:breadcrumb (list (cons "Admin" #f))))))
+
+    (define current-user (make-parameter #f))
+
+    (define (footer)
+      `(div ([id "footer"])
+            "Powered by " (a ([href "http://racket-lang.org/"]) "Racket") ". "
+            "Written by " (a ([href "http://trevoroakes.com/"]) "Trevor Oakes") " and "
+            (a ([href "http://faculty.cs.byu.edu/~jay"]) "Jay McCarthy") ". "))
+
+    (define (tabs header . the-tabs)
+      (define found-selected? #f)
+      (define tab-seq
+        (build-vector (/ (length the-tabs) 2)
+                      (lambda (i)
+                        (define id (symbol->string (gensym)))
+                        (define label (list-ref the-tabs (* 2 i)))
+                        (define body (list-ref the-tabs (add1 (* 2 i))))
+                        (define no-content?
+                          (and (string? body)
+                               (string=? "" body)))
+                        (define selected?
+                          (and (not found-selected?)
+                               (not no-content?)))
+                        (when selected?
+                          (set! found-selected? #t))
+                        (vector id selected? no-content? label body))))
+      `(div ([class "tabbed"])
+            (div ([class "tab-header"])
+                 (div ([class "tab-uheader"]) ,header)
+                 (ul
+                  ,@(for/list ([v (in-vector tab-seq)])
+                      (match-define (vector id selected? no-content? label body) v)
+                      (define direct-link
+                        (match body
+                          [(cons #f url) url]
+                          [_ #f]))
+                      `(li ([id ,(format "li~a" id)] ,@(if selected? `([class "tab-selected"]) empty))
+                           ,(cond
+                              [no-content?
+                               label]
+                              [direct-link
+                               `(a ([href ,direct-link]) ,label)]
+                              [else
+                               `(a ([href ,(format "javascript:~a~a;"
+                                                   (for/fold ([s ""]) ([v (in-vector tab-seq)])
+                                                     (match-define (vector id selected? no-content? label _) v)
+                                                     (format "ToggleOff(~S);~a" id s))
+                                                   (format "ToggleOn(~S)" id))])
+                                   ,label)])))))
+            ,@(for/list ([v (in-vector tab-seq)])
+                (match-define (vector id selected? no-content? _ body) v)
+                (define direct-link
+                  (match body
+                    [(cons #f url) url]
+                    [_ #f]))
+                `(div ([id ,id]
+                       [style ,(if selected?
+                                 "display: block"
+                                 "display: none")]
+                       [class "tab-content"])
+                      ,(if direct-link "" body)))))
 
     (define (require-login-then-dispatch req)
       (cond
@@ -458,88 +554,5 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         [else (next-dispatcher)])))
   require-login-then-dispatch)
 
-(define (view-student-photo req student)
-  (define user-img-path (build-path source-dir "db" student "photo.jpg"))
-  (define user-info-path (build-path source-dir "db" student "info.rktd"))
-  (define user-email
-    (if (file-exists? user-info-path)
-      (student-email (file->value user-info-path))
-      ""))
-  (if (file-exists? user-img-path)
-    (response/full
-     200 #"Okay"
-     (current-seconds) #"image/jpg"
-     empty
-     (list (file->bytes user-img-path)))
-    (redirect-to (format "http://www.gravatar.com/avatar/~a?s=160&d=mm"
-                         (md5 (string-downcase (string-trim-both user-email)))))))
-
-(define (render-admin)
-  (send/suspend/dispatch
-   (λ (embed/url)
-     (response/xexpr
-      `(html (head (title "Admin Page"))
-             (body (h1 "Admin Page")))))))
-
-(define current-user (make-parameter #f))
-
-(define (footer)
-  `(div ([id "footer"])
-        "Powered by " (a ([href "http://racket-lang.org/"]) "Racket") ". "
-        "Written by " (a ([href "http://trevoroakes.com/"]) "Trevor Oakes") " and "
-        (a ([href "http://faculty.cs.byu.edu/~jay"]) "Jay McCarthy") ". "))
-
-(define (tabs header . the-tabs)
-  (define found-selected? #f)
-  (define tab-seq
-    (build-vector (/ (length the-tabs) 2)
-                  (lambda (i)
-                    (define id (symbol->string (gensym)))
-                    (define label (list-ref the-tabs (* 2 i)))
-                    (define body (list-ref the-tabs (add1 (* 2 i))))
-                    (define no-content?
-                      (and (string? body)
-                           (string=? "" body)))
-                    (define selected?
-                      (and (not found-selected?)
-                           (not no-content?)))
-                    (when selected?
-                      (set! found-selected? #t))
-                    (vector id selected? no-content? label body))))
-  `(div ([class "tabbed"])
-        (div ([class "tab-header"])
-             (div ([class "tab-uheader"]) ,header)
-             (ul
-              ,@(for/list ([v (in-vector tab-seq)])
-                  (match-define (vector id selected? no-content? label body) v)
-                  (define direct-link
-                    (match body
-                      [(cons #f url) url]
-                      [_ #f]))
-                  `(li ([id ,(format "li~a" id)] ,@(if selected? `([class "tab-selected"]) empty))
-                       ,(cond
-                          [no-content?
-                           label]
-                          [direct-link
-                           `(a ([href ,direct-link]) ,label)]
-                          [else
-                           `(a ([href ,(format "javascript:~a~a;"
-                                               (for/fold ([s ""]) ([v (in-vector tab-seq)])
-                                                 (match-define (vector id selected? no-content? label _) v)
-                                                 (format "ToggleOff(~S);~a" id s))
-                                               (format "ToggleOn(~S)" id))])
-                               ,label)])))))
-        ,@(for/list ([v (in-vector tab-seq)])
-            (match-define (vector id selected? no-content? _ body) v)
-            (define direct-link
-              (match body
-                [(cons #f url) url]
-                [_ #f]))
-            `(div ([id ,id]
-                   [style ,(if selected?
-                             "display: block"
-                             "display: none")]
-                   [class "tab-content"])
-                  ,(if direct-link "" body)))))
-
-(provide make-start-handler)
+(provide make-start-handler
+         samurai-static)
