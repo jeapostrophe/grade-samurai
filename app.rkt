@@ -24,8 +24,6 @@
 
 (define DEBUG? #t)
 
-;; XXX TODO View submitted files
-;; XXX TODO Performing self-eval
 ;; XXX TODO Showing self-eval answers
 ;; XXX TODO Performing peer-eval
 ;; XXX TODO Showing peer-eval answers
@@ -232,7 +230,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       evaluate-peer]))
 
   (define (view-files req a-id)
-    (error 'XXX))
+    (template
+     #:breadcrumb (list (cons "View Files" #f))
+     (assignment-file-display a-id)))
 
   (define (show-self req a-id)
     (error 'XXX))
@@ -271,6 +271,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (build-path (user-path) "assignments" id))
   (define (assignment-file-path id)
     (build-path (assignment-path id) "files"))
+  (define (assignment-files id)
+    (if (directory-exists? (assignment-file-path id))
+      (directory-list (assignment-file-path id))
+      empty))
   (define (assignment-peer-path id)
     (build-path (assignment-path id) "peer"))
   (define (assignment-question-student-grade-path id i)
@@ -320,7 +324,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (compute-question-grade optional? default-grade id i q)
     (match-define (question nw ow _ t) q)
     (define ow-p (if optional? ow 0))
-    (define ps 
+    (define ps
       (match t
         ['numeric
          (or (assignment-question-prof-numeric-grade id i)
@@ -333,13 +337,14 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
            [(  #t   #f) -1/10]
            [(  #f   #t)  1/10]
            [(  #f   #f)  0/10]
-           [('n/a 'n/a) default-grade])]))
+           [('n/a    _) default-grade]
+           [(   _ 'n/a) default-grade])]))
     (* (+ nw ow-p) ps))
 
   (define (compute-peer-grade optional? default-grade id i q)
     (match-define (question nw ow _ t) q)
     (define ow-p (if optional? ow 0))
-    (define ps 
+    (define ps
       (match t
         ['numeric
          (define prof (assignment-question-prof-numeric-grade/peer id i))
@@ -362,22 +367,22 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define ((make-compute-question-grades compute-question-grade)
            optional? default-grade id qs)
-    (for/sum 
+    (for/sum
      ([q (in-list qs)]
       [i (in-naturals)])
      (compute-question-grade optional? default-grade id i q)))
 
-  (define compute-question-grades 
+  (define compute-question-grades
     (make-compute-question-grades compute-question-grade))
-  (define compute-peer-grades 
+  (define compute-peer-grades
     (make-compute-question-grades compute-peer-grade))
 
   (define (compute-grade default-grade)
-    (for/sum 
+    (for/sum
      ([a (in-list assignments)])
      (match-define (assignment nw ow id ds es ps qs) a)
      (define self-pts
-       (compute-question-grades 
+       (compute-question-grades
         ;; XXX incorporate optional-enable
         #t default-grade
         id qs))
@@ -386,10 +391,18 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         #t default-grade
         id qs))
      (if (number? ps)
-       (* (+ ow nw)         
+       (* (+ ow nw)
           (+ (* 9/10 self-pts)
              (* 1/10 peer-pts)))
        (* (+ ow nw) self-pts))))
+
+  (define (assignment-file-display a-id)
+    `(div ([id "files"])
+          ,@(map
+             (λ(file)
+               ((curry file->html-table a-id)
+                (build-path (assignment-file-path a-id) file)))
+             (assignment-files a-id))))
 
   (define (format-grade default-grade)
     (define g (compute-grade default-grade))
@@ -397,22 +410,20 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             (real->decimal-string (* 100 g) 4)
             (letter-grade g)))
 
-  ;; XXX put files in iframe - actually ask questions
   (define (evaluate-self req a-id)
     (define assignment (id->assignment a-id))
-    (define files
-      (directory-list (assignment-file-path a-id)))
+    (define files (assignment-files a-id))
     (define boolean-formlet
       (formlet
-         (div (p "Did you fulfill the requirement?")
-          ,{(radio-group '(1 0)
-                         #:display (λ (x) (if (= 1 x) "Yes" "No")))
+       (p ,{(radio-group '(#t #f)
+                         #:checked? (λ (x) x)
+                         #:display (λ (x) (if x "Yes" "No")))
             . => . credit})
-         credit))
+       credit))
     (define numeric-formlet
       (formlet
-       (div (p "How well did you meet the requirement? (Enter a number between 0 and 1)")
-            ,{(to-number input-string) . => . percent})
+       (p ,{(to-number input-string) . => . percent}
+          "(Enter a number between 0 and 1)")
        percent))
     (define (ask-question q)
       (define question-formlet
@@ -422,8 +433,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
               ['bool boolean-formlet]
               ['numeric numeric-formlet])
             . => . score}
-          "Provide evidence to justify that score. (Use L32 or l32 to refer to line 32)"
-          ,{(to-string (required (textarea-input))) . => . comment})
+          (p "Provide evidence to justify that score.")
+          ,{(to-string (required (textarea-input #:rows 8 #:cols 80))) . => . comment}
+          (p "(If you need to refer to line numbers, prefix a number with L. For example, use L32 or l32 to refer to line 32)"))
          (values score comment)))
       (define-values (score explanation)
         (formlet-process
@@ -437,28 +449,42 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                (table
                 (tr
                  (td
-                  (div ([id "files"])
-                    ,@(map
-                       (λ(file)
-                         ((curry file->html-table a-id)
-                          (build-path (assignment-file-path a-id) file)))
-                       files)))
+                  ,(assignment-file-display a-id))
                  (td
                   (p ,(question-prompt q))
                   (form ([action ,k-url] [method "post"])
                         ,@(formlet-display question-formlet)
-                        (input ([type "submit"]))))))))))))
-      (question-self-eval score
-                          (map (λ (s) (string->number (substring s 1))) 
-                               (regexp-match* #px"[lL]\\d+" explanation))
-                          explanation))
+                        (input ([type "submit"] [value "Submit"]))))))))))))
+      ((match (question-type q)
+         ['bool
+          answer:bool]
+         ['numeric
+          answer:numeric])
+       (current-seconds) explanation
+       score))
 
-    (for ([question (assignment-questions assignment)]
-          [i (in-naturals)])
-      (write-to-file* 
-       (assignment-question-student-grade-path a-id i)
-       (ask-question question)))
-    (redirect-to (main-url show-root)))
+    (define (overdue-or thunk)
+      (if (<= (assignment-due-secs assignment) (current-seconds))
+        (template
+         #:breadcrumb (list (cons "Self Eval" #f))
+         "Self evaluation past due.")
+        (thunk)))
+
+    (overdue-or
+     (λ ()
+       (for ([question (assignment-questions assignment)]
+             [i (in-naturals)])
+         (unless (file-exists? (assignment-question-student-grade-path a-id i))
+           (define answer (ask-question question))
+           (overdue-or 
+            (λ ()
+              (write-to-file*
+               answer
+               (assignment-question-student-grade-path a-id i))))))
+
+       (template
+        #:breadcrumb (list (cons "Self Eval" #f))
+        "Self evaluation completed."))))
 
   #;(define (page/grade-next-question)
   (define unanswered (filter (negate (curry user-has-answer? u)) questions))
@@ -531,8 +557,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                                      add1)))))))))))
 
   (define (display-files student a-id select)
-    (define files
-      (directory-list (assignment-file-path a-id)))
+    (define files (assignment-files a-id))
 
     (send/back
      (template #:breadcrumb (list (cons (format "Files for ~a" a-id) #f))
@@ -576,7 +601,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                  (,(* 60 60) . "hour")
                  (60 . "minute")
                  (1 . "second"))))
-      (format "~a ~a~a" 
+      (format "~a ~a~a"
               (quotient s (car unit))
               (cdr unit)
               (if (= 1 (quotient s (car unit)))
@@ -659,8 +684,6 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (manage-files req a-id)
     (define assignment
       (findf (λ (a) (string=? a-id (assignment-id a))) assignments))
-    (define files-dir (assignment-file-path a-id))
-    (make-directory* files-dir)
     (define (extract-binding:file req)
       (bindings-assq #"new-file" (request-bindings/raw req)))
     (define new-file-binding
@@ -683,7 +706,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                        (td (a ([href ,(main-url delete-a-file a-id
                                                 (path->string file-path))])
                               "X"))))
-                (directory-list files-dir)))
+                (assignment-files a-id)))
+           ;; XXX Add a textarea box
            `(form ([action ,k-url]
                    [method "post"]
                    [enctype "multipart/form-data"])
@@ -699,7 +723,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (when (< (current-seconds) (assignment-due-secs assignment))
       (display-to-file
        file-content
-       (build-path files-dir
+       (build-path (assignment-file-path a-id)
                    (bytes->string/utf-8
                     (binding:file-filename new-file-binding)))))
     (redirect-to (main-url manage-files a-id)))
@@ -779,7 +803,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          (when selected?
            (set! found-selected? #t))
          (vector id selected? no-content? label body))))
-    `(div 
+    `(div
       ([class "tabbed"])
       (div
        ([class "tab-header"])
@@ -802,7 +826,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                      `(a ([href ,direct-link]) ,label)]
                     [else
                      `(a ([href
-                           ,(format 
+                           ,(format
                              "javascript:~a~a;"
                              (for/fold ([s ""])
                                  ([v (in-vector tab-seq)])
@@ -823,7 +847,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                            "display: none")]
                  [class "tab-content"])
                 ,(if direct-link "" body)))))
-  
+
   (define (require-login-then-dispatch req)
     (cond
       [(main-applies? req)
