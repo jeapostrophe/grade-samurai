@@ -22,10 +22,12 @@
          "model.rkt"
          "../m8b/id-cookie.rkt")
 
+(define DEBUG? #t)
+
 ;; XXX TODO View submitted files
 ;; XXX TODO Performing self-eval
 ;; XXX TODO Showing self-eval answers
-;; XXX TODO Performing peer-evalS
+;; XXX TODO Performing peer-eval
 ;; XXX TODO Showing peer-eval answers
 ;; XXX TODO Doing admin eval
 ;; XXX TODO Allowing comments on self-eval answers after admin
@@ -550,6 +552,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (cond
         [(or (not available) (not closed))
          ""]
+        [DEBUG?
+         `(p (a ([href ,link1]) ,text1) (br)
+             (a ([href ,link2]) ,text2))]
         [(< (current-seconds) available)
          text1]
         [(> (current-seconds) closed)
