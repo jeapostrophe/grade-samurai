@@ -270,7 +270,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           "Done!"
           (ask-question (first un...))))
     
-    (define (peer/grade-next-question req a-id)
+    #;(define (peer/grade-next-question req a-id)
       (define peer-grading-path (build-path source-dir "db" (current-user) a-id))
       (match-define (peer-grading-struct peer-id answers)
         (if (file-exists? peer-grading-path)
@@ -295,10 +295,11 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                  (p (format "The student thought they deserved ~a" ))
                  
                  ,{(to-number (text-input)) . => . range}
-               {()}))))))
+               {()})))))
          
-      ;define formlet, send/suspend formlet, if admin- append in stu's dir, else append to current-user's peer-eval
-      ;redirect to grade-next-question
+      ;; define formlet, send/suspend formlet, if admin- append in
+      ;; stu's dir, else append to current-user's peer-eval redirect
+      ;; to grade-next-question
       empty)
 
     (define (file->html-table a-id file)
@@ -332,7 +333,6 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                            (build-list (length file-lines) add1)))))))))))
 
     (define (display-files student a-id select)
-<<<<<<< Updated upstream
       (define files (directory-list (build-path source-dir "db" student a-id "uploads")))
 
       (send/back
