@@ -11,6 +11,7 @@
          web-server/formlets
          racket/file
          racket/list
+         racket/path
          racket/match
          racket/date
          racket/runtime-path
@@ -58,6 +59,16 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 ") #f))
 
+(define (make-parent-directory* p)
+  (define parent (path-only p))
+  (make-directory* parent))
+(define (display-to-file* v pth)
+  (make-parent-directory* pth)
+  (display-to-file v pth #:exists 'replace))
+(define (write-to-file* v pth)
+  (make-parent-directory* pth)
+  (write-to-file v pth #:exists 'replace))
+
 (define-runtime-path source-dir ".")
 
 (define (samurai-go!
@@ -68,8 +79,6 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          #:username-request-text login-formlet-un-text
          #:password-request-text login-formlet-pw-text)
 
-  (make-directory* db-path)
-
   (define secret-salt-path (build-path db-path "secret-salt"))
 
   (define (id->assignment a-id)
@@ -78,7 +87,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define secret-salt
     (begin
       (unless (file-exists? secret-salt-path)
-        (display-to-file
+        (display-to-file*
          (list->bytes (build-list 128 (λ (i) (random 256))))
          secret-salt-path))
       (file->bytes secret-salt-path)))
@@ -133,13 +142,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                  (text-input #:value (string->bytes/utf-8 default-string)))))
 
   (define (manage-account req)
-
-    (define user-dir (build-path db-path (current-user)))
-
     (define existing-info
       (cond
-        [(file-exists? (build-path user-dir "info.rktd"))
-         (file->value (build-path user-dir "info.rktd"))]
+        [(file-exists? (user-info-path))
+         (file->value (user-info-path))]
         [else (student "" "" "" "")]))
 
     (define account-formlet
@@ -183,12 +189,11 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (define-values (first-name last-name nick-name email photo)
       (formlet-process account-formlet account-form))
 
-    (make-directory* user-dir)
-    (write-to-file (student nick-name first-name last-name email)
-                   (build-path user-dir "info.rktd") #:exists 'replace)
+    (write-to-file* (student nick-name first-name last-name email)
+                    (user-info-path))
     (if (binding:file? photo)
-      (display-to-file (binding:file-content photo)
-                       (build-path user-dir "photo.jpg") #:exists 'replace)
+      (display-to-file* (binding:file-content photo)
+                        (user-image-path))
       (void))
 
     (redirect-to (main-url show-root)))
@@ -226,6 +231,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (view-files req a-id)
     (error 'XXX))
+
   (define (show-self req a-id)
     (error 'XXX))
   (define (show-peer req a-id)
@@ -247,17 +253,23 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       [else "F"]))
 
   (define (assignment-peer id)
-    (if (file-exists? (assigment-peer-path id))
-      (file->string (assigment-peer-path id))
+    (if (file-exists? (assignment-peer-path id))
+      (file->string (assignment-peer-path id))
       "unassigned-peer"))
 
   (define (users-path)
     (build-path db-path "users"))
   (define (user-path)
     (build-path (users-path) (current-user)))
+  (define (user-info-path)
+    (build-path (user-path) "info.rktd"))
+  (define (user-image-path)
+    (build-path (user-path) "photo.jpg"))
   (define (assignment-path id)
     (build-path (user-path) "assignments" id))
-  (define (assigment-peer-path id)
+  (define (assignment-file-path id)
+    (build-path (assignment-path id) "files"))
+  (define (assignment-peer-path id)
     (build-path (assignment-path id) "peer"))
   (define (assignment-question-student-grade-path id i)
     (build-path (assignment-path id) "self-eval" (number->string i)))
@@ -387,7 +399,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (evaluate-self req a-id)
     (define assignment (id->assignment a-id))
     (define files
-      (directory-list (build-path db-path (current-user) a-id "uploads")))
+      (directory-list (assignment-file-path a-id)))
     (define boolean-formlet
       (formlet
          (div (p "Did you fulfill the requirement?")
@@ -400,7 +412,6 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        (div (p "How well did you meet the requirement? (Enter a number between 0 and 1)")
             ,{(to-number input-string) . => . percent})
        percent))
-        
     (define (ask-question q)
       (define question-formlet
         (formlet
@@ -428,8 +439,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                     ,@(map
                        (λ(file)
                          ((curry file->html-table a-id)
-                          (build-path db-path (current-user) a-id
-                                      "uploads" file)))
+                          (build-path (assignment-file-path a-id) file)))
                        files)))
                  (td
                   (p ,(question-prompt q))
@@ -441,10 +451,11 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                (regexp-match* #px"[lL]\\d+" explanation))
                           explanation))
 
-    (write-to-file #:exists 'replace
-                   (for/list ([question (assignment-questions assignment)])
-                     (ask-question question))
-                   (build-path db-path (current-user) a-id "self-eval.rktd"))
+    (for ([question (assignment-questions assignment)]
+          [i (in-naturals)])
+      (write-to-file* 
+       (assignment-question-student-grade-path a-id i)
+       (ask-question question)))
     (redirect-to (main-url show-root)))
 
   #;(define (page/grade-next-question)
@@ -454,7 +465,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (ask-question (first un...))))
 
   #;(define (peer/grade-next-question req a-id)
-  (define peer-grading-path (build-path db-path (current-user) a-id))
+  (define peer-grading-path (build-path ...))
   (match-define (peer-grading-struct peer-id answers)
   (if (file-exists? peer-grading-path)
   (file->value peer-grading-path)
@@ -519,7 +530,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (display-files student a-id select)
     (define files
-      (directory-list (build-path db-path student a-id "uploads")))
+      (directory-list (assignment-file-path a-id)))
 
     (send/back
      (template #:breadcrumb (list (cons (format "Files for ~a" a-id) #f))
@@ -635,7 +646,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (findf (λ (a) (string=? a-id (assignment-id a))) assignments))
     (when (< (current-seconds) (assignment-due-secs assignment))
       (define file-path
-        (build-path db-path (current-user) a-id "uploads" file-to-delete))
+        (build-path (assignment-file-path a-id) file-to-delete))
       (when (file-exists? file-path)
         (delete-file file-path)))
     (redirect-to (main-url manage-files a-id)))
@@ -643,7 +654,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (manage-files req a-id)
     (define assignment
       (findf (λ (a) (string=? a-id (assignment-id a))) assignments))
-    (define files-dir (build-path db-path (current-user) a-id "uploads"))
+    (define files-dir (assignment-file-path a-id))
     (make-directory* files-dir)
     (define (extract-binding:file req)
       (bindings-assq #"new-file" (request-bindings/raw req)))
@@ -713,8 +724,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                   ,(footer))))))
 
   (define (view-student-photo req student)
-    (define user-img-path (build-path db-path student "photo.jpg"))
-    (define user-info-path (build-path db-path student "info.rktd"))
+    (define user-img-path (user-image-path))
+    (define user-info-path (user-info-path))
     (define user-email
       (if (file-exists? user-info-path)
         (student-email (file->value user-info-path))
