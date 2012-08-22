@@ -21,7 +21,9 @@
          "../m8b/id-cookie.rkt")
 
 ;; XXX TODO Style
+;; XXX TODO Fix bread crumbs in template calls
 ;; XXX TODO Showing grade on top
+;; XXX TODO View submitted files
 ;; XXX TODO Performing self-eval
 ;; XXX TODO Showing self-eval answers
 ;; XXX TODO Performing peer-eval
@@ -401,7 +403,6 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        (λ (a) (((assignment-due-secs a) . + . 2-days)
                . > . (current-seconds)))
        (sort assignments < #:key assignment-due-secs)))
-    ;; TODO fix nonplurals
     (define (secs->time-text s)
       (define unit
         (findf (λ (unit-pair) (s . >= . (car unit-pair)))
@@ -410,7 +411,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                  (,(* 60 60) . "hour")
                  (60 . "minute")
                  (1 . "second"))))
-      (format "~a ~as" (quotient s (car unit)) (cdr unit)))
+      (format "~a ~a~a" 
+              (quotient s (car unit))
+              (cdr unit)
+              (if (= 1 (quotient s (car unit)))
+                ""
+                "s")))
     ;; TODO
     (define (self-eval-completed? a-id user) #f)
     ;; TODO render offline assignments (like the final) differently
