@@ -21,17 +21,17 @@
          "model.rkt"
          "../m8b/id-cookie.rkt")
 
-;; XXX TODO Style
-;; XXX TODO Fix bread crumbs in template calls
 ;; XXX TODO View submitted files
 ;; XXX TODO Performing self-eval
 ;; XXX TODO Showing self-eval answers
-;; XXX TODO Performing peer-eval
+;; XXX TODO Performing peer-evalS
 ;; XXX TODO Showing peer-eval answers
 ;; XXX TODO Doing admin eval
 ;; XXX TODO Allowing comments on self-eval answers after admin
 ;; XXX TODO Enforcing optional-enable
 ;; XXX TODO Dealing with your-split (wlang1/wlang2)
+;; XXX TODO Style
+;; XXX TODO Fix bread crumbs in template calls
 
 (define (string->lines s)
   (string-split s "\n"))
@@ -191,7 +191,6 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                        (build-path user-dir "photo.jpg") #:exists 'replace)
       (void))
 
-    ;; TODO redirect to student page?
     (redirect-to (main-url show-root)))
 
   (define (view-student req student)
@@ -389,62 +388,58 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (define assignment (id->assignment a-id))
     (define files
       (directory-list (build-path db-path (current-user) a-id "uploads")))
+    (define boolean-formlet
+      (formlet
+         (div (p "Did you fulfill the requirement?")
+          ,{(radio-group '(1 0)
+                         #:display (λ (x) (if (= 1 x) "Yes" "No")))
+            . => . credit})
+         credit))
+    (define numeric-formlet
+      (formlet
+       (div (p "How well did you meet the requirement? (Enter a number between 0 and 1)")
+            ,{(to-number input-string) . => . percent})
+       percent))
+        
     (define (ask-question q)
-      (define file-lines-formlet
+      (define question-formlet
         (formlet
-         (table (tr (td (p "Which file do you want to highlight?")
-                        ,{(radio-group
-                           (append (map path->string files)
-                                   `("None")))
-                          . => . file}))
-                (tr (td "Space Separated Line Numbers")
-                    (td ,{(default-text-input "") . => . line-nums})))
-         (values file line-nums)))
-      (define-values (file line-nums)
+         (div
+          ,{(match (question-type q)
+              ['bool boolean-formlet]
+              ['numeric numeric-formlet])
+            . => . score}
+          "Provide evidence to justify that score. (Use L32 or l32 to refer to line 32)"
+          ,{(to-string (required (textarea-input))) . => . comment})
+         (values score comment)))
+      (define-values (score explanation)
         (formlet-process
-         file-lines-formlet
+         question-formlet
          (send/suspend
           (λ (k-url)
             (template
              ;; XXX
-             #:breadcrumb (list (cons "Self Evaluation - File" #f))
+             #:breadcrumb (list (cons "Self Evaluation" #f))
              `(div
-               (h1 "Relevant Line Selection")
-               (p "Pick the lines that demonstrate that you deserve credit for the following question:")
-               (p ,(question-prompt q))
-               (form ([action ,k-url] [method "post"])
-                     ,@(formlet-display file-lines-formlet)
-                     (input ([type "submit"])))
-               (div ([id "files"])
+               (table
+                (tr
+                 (td
+                  (div ([id "files"])
                     ,@(map
                        (λ(file)
                          ((curry file->html-table a-id)
                           (build-path db-path (current-user) a-id
                                       "uploads" file)))
-                       files))))))))
-
-      (define self-score-formlet
-        (formlet
-         (div ,{(radio-group '(1 0)
-                             #:display (λ (x) (if (= 1 x) "Yes" "No")))
-                . => . credit?})
-         credit?))
-      (define-values (self-score)
-        (formlet-process
-         self-score-formlet
-         (send/suspend
-          (λ  (k-url)
-            (template
-             #:breadcrumb (list (cons "Self Evaluation" #f))
-             `(div (h1 "Self Evalution")
-                   (p ,(question-prompt q))
-                   (p "Do the selected lines demonstrate that you deserve credit for this question?")
-                   ;; TODO show those lines selected
-                   (form ([action ,k-url] [method "post"])
-                         ,@(formlet-display self-score-formlet)
-                         (input ([type "submit"])))))))))
-      (question-self-eval self-score file
-                          (map string->number (string-split line-nums))))
+                       files)))
+                 (td
+                  (p ,(question-prompt q))
+                  (form ([action ,k-url] [method "post"])
+                        ,@(formlet-display question-formlet)
+                        (input ([type "submit"]))))))))))))
+      (question-self-eval score
+                          (map (λ (s) (string->number (substring s 1))) 
+                               (regexp-match* #px"[lL]\\d+" explanation))
+                          explanation))
 
     (write-to-file #:exists 'replace
                    (for/list ([question (assignment-questions assignment)])
@@ -550,12 +545,14 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          `(a ([href ,link2]) ,text2)]
         [else
          `(a ([href ,link1]) ,text1)]))
-    (define-values (upcoming past)
+    (define-values (upcoming past);; TODO base off which phases they can still do
       (partition
        (λ (a) (((assignment-due-secs a) . + . 2-days)
                . > . (current-seconds)))
        (sort assignments < #:key assignment-due-secs)))
-    (define (secs->time-text s)
+    (define (secs->time-text secs)
+      (define s (if (secs . <= . 1) 1 secs))
+      (if (s . < . 0) (set! s 1) void)
       (define unit
         (findf (λ (unit-pair) (s . >= . (car unit-pair)))
                `((,(* 60 60 24 7) . "week")

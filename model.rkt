@@ -7,7 +7,7 @@
 (struct question (normal-weight optional-weight prompt type) #:prefab)
 
 (struct question-self-eval
-        (self-score file line-number) #:prefab);TODO merge file and line-number
+        (score lines explanation) #:prefab);TODO merge file and line-number
 
 (struct peer-grading-struct
         (peer-id question-grades) #:prefab)
@@ -36,9 +36,9 @@
           [prompt string?]
           [type (or/c 'bool 'numeric)])]
  [struct question-self-eval
-         ([self-score number?]
-          [file string?]
-          [line-number string?])]
+         ([score number?]
+          [lines (listof number?)]
+          [explanation string?])]
  [struct peer-grading-struct
          ([peer-id string?]
           [question-grades (listof question-self-eval?)])]
