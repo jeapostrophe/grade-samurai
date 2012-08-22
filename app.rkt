@@ -23,7 +23,6 @@
 
 ;; XXX TODO Style
 ;; XXX TODO Fix bread crumbs in template calls
-;; XXX TODO Showing grade on top
 ;; XXX TODO View submitted files
 ;; XXX TODO Performing self-eval
 ;; XXX TODO Showing self-eval answers
@@ -249,7 +248,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       [else "F"]))
 
   (define (assignment-peer id)
-    "XXX")
+    (if (file-exists? (assigment-peer-path id))
+      (file->string (assigment-peer-path id))
+      "unassigned-peer"))
 
   (define (users-path)
     (build-path db-path "users"))
@@ -257,26 +258,51 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (build-path (users-path) (current-user)))
   (define (assignment-path id)
     (build-path (user-path) "assignments" id))
+  (define (assigment-peer-path id)
+    (build-path (assignment-path id) "peer"))
   (define (assignment-question-student-grade-path id i)
     (build-path (assignment-path id) "self-eval" (number->string i)))
+  (define (assignment-question-student-grade-path/peer id i)
+    (build-path (assignment-path id) "peer-eval" (number->string i)))
   (define (assignment-question-prof-grade-path id i)
     (build-path (assignment-path id) "prof-eval" (number->string i)))
 
+  ;; XXX cleanup this
   (define (assignment-question-student-bool-grade id i)
     (define p (assignment-question-student-grade-path id i))
     (if (file-exists? p)
       (answer:bool-value (file->value p))
       'n/a))
+  (define (assignment-question-student-bool-grade/peer id i)
+    (define p (assignment-question-student-grade-path/peer id i))
+    (if (file-exists? p)
+      (answer:bool-value (file->value p))
+      'n/a))
+  (define (assignment-question-student-numeric-grade/peer id i)
+    (define p (assignment-question-student-grade-path/peer id i))
+    (if (file-exists? p)
+      (answer:numeric-value (file->value p))
+      #f))
+
   (define (assignment-question-prof-bool-grade id i)
     (define p (assignment-question-prof-grade-path id i))
     (if (file-exists? p)
       (answer:bool-value (file->value p))
       'n/a))
+  (define (assignment-question-prof-bool-grade/peer id i)
+    (define peer (assignment-peer id))
+    (parameterize ([current-user peer])
+      (assignment-question-prof-bool-grade id i)))
+
   (define (assignment-question-prof-numeric-grade id i)
     (define p (assignment-question-prof-grade-path id i))
     (if (file-exists? p)
       (answer:numeric-value (file->value p))
       #f))
+  (define (assignment-question-prof-numeric-grade/peer id i)
+    (define peer (assignment-peer id))
+    (parameterize ([current-user peer])
+      (assignment-question-prof-numeric-grade id i)))
 
   (define (compute-question-grade optional? default-grade id i q)
     (match-define (question nw ow _ t) q)
@@ -297,25 +323,60 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
            [('n/a 'n/a) default-grade])]))
     (* (+ nw ow-p) ps))
 
-  (define (compute-question-grades optional? default-grade id qs)
+  (define (compute-peer-grade optional? default-grade id i q)
+    (match-define (question nw ow _ t) q)
+    (define ow-p (if optional? ow 0))
+    (define ps 
+      (match t
+        ['numeric
+         (define prof (assignment-question-prof-numeric-grade/peer id i))
+         (define student (assignment-question-student-numeric-grade/peer id i))
+         (if (and prof student)
+           (- 1 (abs (- prof student)))
+           default-grade)]
+        ['bool
+         (define prof (assignment-question-prof-bool-grade/peer id i))
+         (define student (assignment-question-student-bool-grade/peer id i))
+         (cond
+           [(or (eq? 'n/a prof)
+                (eq? 'n/a student))
+            default-grade]
+           [(equal? prof student)
+            1]
+           [else
+            0])]))
+    (* (+ nw ow-p) ps))
+
+  (define ((make-compute-question-grades compute-question-grade)
+           optional? default-grade id qs)
     (for/sum 
      ([q (in-list qs)]
       [i (in-naturals)])
      (compute-question-grade optional? default-grade id i q)))
 
+  (define compute-question-grades 
+    (make-compute-question-grades compute-question-grade))
+  (define compute-peer-grades 
+    (make-compute-question-grades compute-peer-grade))
+
   (define (compute-grade default-grade)
     (for/sum 
      ([a (in-list assignments)])
      (match-define (assignment nw ow id ds es ps qs) a)
-     ;; XXX incorporate peer eval (.9 vs .1)
-     (and (number? ps)
-          (assignment-peer id))
-     (define pts
+     (define self-pts
        (compute-question-grades 
-         ;; XXX incorporate optional-enable
-         #t default-grade
-         id qs))
-     (* (+ ow nw) pts)))
+        ;; XXX incorporate optional-enable
+        #t default-grade
+        id qs))
+     (define peer-pts
+       (compute-peer-grades
+        #t default-grade
+        id qs))
+     (if (number? ps)
+       (* (+ ow nw)         
+          (+ (* 9/10 self-pts)
+             (* 1/10 peer-pts)))
+       (* (+ ow nw) self-pts))))
 
   (define (format-grade default-grade)
     (define g (compute-grade default-grade))
