@@ -1,5 +1,6 @@
 #lang racket/base
 (require racket/contract
+         unstable/debug
          web-server/servlet-env
          unstable/contract
          web-server/http
@@ -231,6 +232,96 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (error 'XXX))
   (define (show-peer req a-id)
     (error 'XXX))
+
+  (define (letter-grade ng)
+    (cond
+      [(> ng 0.93) "A"]
+      [(> ng 0.90) "A-"]
+      [(> ng 0.86) "B+"]
+      [(> ng 0.83) "B"]
+      [(> ng 0.80) "B-"]
+      [(> ng 0.76) "C+"]
+      [(> ng 0.73) "C"]
+      [(> ng 0.70) "C-"]
+      [(> ng 0.66) "D+"]
+      [(> ng 0.63) "D"]
+      [(> ng 0.60) "D-"]
+      [else "F"]))
+
+  (define (assignment-peer id)
+    "XXX")
+
+  (define (users-path)
+    (build-path db-path "users"))
+  (define (user-path)
+    (build-path (users-path) (current-user)))
+  (define (assignment-path id)
+    (build-path (user-path) "assignments" id))
+  (define (assignment-question-student-grade-path id i)
+    (build-path (assignment-path id) "self-eval" (number->string i)))
+  (define (assignment-question-prof-grade-path id i)
+    (build-path (assignment-path id) "prof-eval" (number->string i)))
+
+  (define (assignment-question-student-bool-grade id i)
+    (define p (assignment-question-student-grade-path id i))
+    (if (file-exists? p)
+      (answer:bool-value (file->value p))
+      'n/a))
+  (define (assignment-question-prof-bool-grade id i)
+    (define p (assignment-question-prof-grade-path id i))
+    (if (file-exists? p)
+      (answer:bool-value (file->value p))
+      'n/a))
+  (define (assignment-question-prof-numeric-grade id i)
+    (define p (assignment-question-prof-grade-path id i))
+    (if (file-exists? p)
+      (answer:numeric-value (file->value p))
+      #f))
+
+  (define (compute-question-grade optional? default-grade id i q)
+    (match-define (question nw ow _ t) q)
+    (define ow-p (if optional? ow 0))
+    (define ps 
+      (match t
+        ['numeric
+         (or (assignment-question-prof-numeric-grade id i)
+             default-grade)]
+        ['bool
+         (define student-correct? (assignment-question-student-bool-grade id i))
+         (define prof-correct? (assignment-question-prof-bool-grade id i))
+         (match* (student-correct? prof-correct?)
+           [(  #t   #t) 10/10]
+           [(  #t   #f) -1/10]
+           [(  #f   #t)  1/10]
+           [(  #f   #f)  0/10]
+           [('n/a 'n/a) default-grade])]))
+    (* (+ nw ow-p) ps))
+
+  (define (compute-question-grades optional? default-grade id qs)
+    (for/sum 
+     ([q (in-list qs)]
+      [i (in-naturals)])
+     (compute-question-grade optional? default-grade id i q)))
+
+  (define (compute-grade default-grade)
+    (for/sum 
+     ([a (in-list assignments)])
+     (match-define (assignment nw ow id ds es ps qs) a)
+     ;; XXX incorporate peer eval (.9 vs .1)
+     (and (number? ps)
+          (assignment-peer id))
+     (define pts
+       (compute-question-grades 
+         ;; XXX incorporate optional-enable
+         #t default-grade
+         id qs))
+     (* (+ ow nw) pts)))
+
+  (define (format-grade default-grade)
+    (define g (compute-grade default-grade))
+    (format "~a% (~a)"
+            (real->decimal-string (* 100 g) 4)
+            (letter-grade g)))
 
   ;; XXX put files in iframe - actually ask questions
   (define (evaluate-self req a-id)
@@ -473,9 +564,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         ;; TODO
         `(div ([id "class-score"])
               (table (tr (th "Mininum Final Grade")
-                         (th "Expected Grade")
                          (th "Maximum Final Grade"))
-                     (tr (td "0%") (td "75%") (td "100%"))))
+                     (tr (td ,(format-grade 0))
+                         (td ,(format-grade 1)))))
         `(div ([id "upcoming-assignments"])
               ,@(map render-assignment upcoming))
         `(div ([id "past-assignments"])

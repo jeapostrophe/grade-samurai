@@ -14,6 +14,13 @@
 
 (struct student (nickname firstname lastname email) #:prefab)
 
+(struct answer (timestamp comments)
+        #:prefab)
+(struct answer:bool answer (value)
+        #:prefab)
+(struct answer:numeric answer (value)
+        #:prefab)
+
 (provide/contract
  [struct assignment
          ([normal-weight number?]
@@ -35,6 +42,14 @@
  [struct peer-grading-struct
          ([peer-id string?]
           [question-grades (listof question-self-eval?)])]
+ [struct answer:bool
+         ([timestamp exact-nonnegative-integer?]
+          [comments string?]
+          [value boolean?])]
+ [struct answer:numeric
+         ([timestamp exact-nonnegative-integer?]
+          [comments string?]
+          [value (between/c 0 1)])]
  [struct student
          ([nickname string?]
           [firstname string?]
