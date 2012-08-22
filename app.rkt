@@ -20,6 +20,17 @@
          "model.rkt"
          "../m8b/id-cookie.rkt")
 
+;; XXX TODO Style
+;; XXX TODO Showing grade on top
+;; XXX TODO Performing self-eval
+;; XXX TODO Showing self-eval answers
+;; XXX TODO Performing peer-eval
+;; XXX TODO Showing peer-eval answers
+;; XXX TODO Doing admin eval
+;; XXX TODO Allowing comments on self-eval answers after admin
+;; XXX TODO Enforcing optional-enable
+;; XXX TODO Dealing with your-split (wlang1/wlang2)
+
 (define (string->lines s)
   (string-split s "\n"))
 
