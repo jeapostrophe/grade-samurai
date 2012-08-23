@@ -24,7 +24,6 @@
 
 (define DEBUG? #t)
 
-;; XXX TODO Showing self-eval answers
 ;; XXX TODO Showing peer-eval answers
 ;; XXX TODO Doing admin eval
 
@@ -237,8 +236,6 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
      #:breadcrumb (list (cons "View Files" #f))
      (assignment-file-display a-id)))
 
-  (define (show-self req a-id)
-    (error 'XXX))
   (define (show-peer req a-id)
     (error 'XXX))
 
@@ -257,13 +254,35 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       [(> ng 0.60) "D-"]
       [else "F"]))
 
+  (define default-peer
+    "The Spanish Inquisition")
   (define (assignment-peer id)
     (if (file-exists? (assignment-peer-path id))
       (file->string (assignment-peer-path id))
-      "unassigned-peer"))
+      default-peer))
+  (define (assignment-co-peer id)
+    (or (for/or ([u (in-list (users))])
+          (and (equal? id
+                       (parameterize ([current-user u])
+                         (assignment-peer id)))
+               u))
+        default-peer))
+
+  (define (path->last-part f)
+    (define-values (base name must-be-dir?)
+      (split-path f))
+    (path->string name))
+
+  (define (directory-list* pth)
+    (if (directory-exists? pth)
+      (map path->last-part (directory-list pth))
+      empty))
 
   (define (users-path)
     (build-path db-path "users"))
+  (define (users)
+    (directory-list* (users-path)))
+
   (define (user-path)
     (build-path (users-path) (current-user)))
   (define (user-info-path)
@@ -275,9 +294,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (assignment-file-path id)
     (build-path (assignment-path id) "files"))
   (define (assignment-files id)
-    (if (directory-exists? (assignment-file-path id))
-      (directory-list (assignment-file-path id))
-      empty))
+    (directory-list* (assignment-file-path id)))
   (define (assignment-peer-path id)
     (build-path (assignment-path id) "peer"))
   (define (assignment-question-student-grade-path id i)
@@ -287,9 +304,26 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (assignment-question-prof-grade-path id i)
     (build-path (assignment-path id) "prof-eval" (number->string i)))
 
-  (define (assignment-question-student-grade id i)
+  (define ((make-assignment-question-student-grade
+            assignment-question-student-grade-path)
+           id i)
     (define p (assignment-question-student-grade-path id i))
     (and (file-exists? p) (file->value p)))
+  
+  (define assignment-question-student-grade
+    (make-assignment-question-student-grade
+     assignment-question-student-grade-path))
+  (define assignment-question-student-grade/peer
+    (make-assignment-question-student-grade
+     assignment-question-student-grade-path/peer))
+  (define assignment-question-prof-grade
+    (make-assignment-question-student-grade
+     assignment-question-prof-grade-path))
+
+  (define (assignment-question-peer-grade id i)
+    (define co-peer (assignment-co-peer id))
+    (parameterize ([current-user co-peer])
+      (assignment-question-student-grade/peer id i)))
 
   ;; XXX cleanup this
   (define (assignment-question-student-bool-grade id i)
@@ -298,20 +332,20 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (answer:bool-value v)
       'n/a))
   (define (assignment-question-student-bool-grade/peer id i)
-    (define p (assignment-question-student-grade-path/peer id i))
-    (if (file-exists? p)
-      (answer:bool-value (file->value p))
+    (define v (assignment-question-student-grade/peer id i))
+    (if v
+      (answer:bool-value v)
       'n/a))
   (define (assignment-question-student-numeric-grade/peer id i)
-    (define p (assignment-question-student-grade-path/peer id i))
-    (if (file-exists? p)
-      (answer:numeric-value (file->value p))
+    (define v (assignment-question-student-grade/peer id i))
+    (if v
+      (answer:numeric-value v)
       #f))  
 
   (define (assignment-question-prof-bool-grade id i)
-    (define p (assignment-question-prof-grade-path id i))
-    (if (file-exists? p)
-      (answer:bool-value (file->value p))
+    (define v (assignment-question-prof-grade id i))
+    (if v
+      (answer:bool-value v)
       'n/a))
   (define (assignment-question-prof-bool-grade/peer id i)
     (define peer (assignment-peer id))
@@ -319,9 +353,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (assignment-question-prof-bool-grade id i)))
 
   (define (assignment-question-prof-numeric-grade id i)
-    (define p (assignment-question-prof-grade-path id i))
-    (if (file-exists? p)
-      (answer:numeric-value (file->value p))
+    (define v (assignment-question-prof-grade id i))
+    (if v
+      (answer:numeric-value v)
       #f))
   (define (assignment-question-prof-numeric-grade/peer id i)
     (define peer (assignment-peer id))
@@ -443,7 +477,6 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (evaluate-self req a-id)
     (define assignment (id->assignment a-id))
-    (define files (assignment-files a-id))
     (define (ask-question q)
       (define question-formlet
         (formlet
@@ -504,11 +537,56 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         #:breadcrumb (list (cons "Self Eval" #f))
         "Self evaluation completed."))))
 
+  (define (format-answer which ans)
+    (cond
+      [ans
+       `(div ([class ,(format "answer ~a" which)])
+             (p ,(format "The ~a evaluation is: ~a"
+                         which
+                         (match ans
+                           [(answer:bool _ _ completed?)
+                            (if completed?
+                              "Yes"
+                              "No")]
+                           [(answer:numeric _ _ value)
+                            (real->decimal-string value 4)])))         
+             ;; XXX add line links
+             (pre ,(answer-comments ans)))]
+      [else
+       `(div ([class ,(format "answer incomplete ~a" which)])
+             (p ,(format "Your ~a evaluation is not completed." which)))]))
+
+  (define (show-self req a-id)
+    (define assignment (id->assignment a-id))
+    (template
+     #:breadcrumb (list (cons "Self Evaluation" #f))
+     `(div
+       (table
+        (tr
+         (td
+          ,(assignment-file-display a-id))
+         (td
+          ,@(for/list ([q (in-list (assignment-questions assignment))]
+                       [i (in-naturals)])
+              (match-define (question nw ow prompt type) q)
+              `(div (p (span ([class "weight"])
+                             ;; XXX incorporate optional-enable
+                             ,(real->decimal-string (+ nw ow) 4))
+                       ,prompt)
+                    ,(format-answer 
+                      "Self"
+                      (assignment-question-student-grade a-id i))
+                    ,(format-answer
+                      "Professor"
+                      (assignment-question-prof-grade a-id i))
+                    ,(format-answer
+                      "Peer"
+                      (assignment-question-peer-grade a-id i))))))))))
+
   (define (evaluate-peer req a-id)
     (define assignment (id->assignment a-id))
     (define (pick-a-person)
-      (define student-ids
-        (map path->last-part (directory-list (users-path))))
+      (define student-ids (users))
       (define finished-self-eval
         (map
          car
@@ -579,32 +657,20 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         "Peer evaluation completed."))))
 
   (define (grade-question stu a-id question q-self-eval)    
-    (define the-formlet
+    (define score-formlet
       (match (question-type question)
         ['numeric 
-         (formlet
-          (div
-           (p ,(format "The student thought they earned ~a."
-                       (answer:numeric-value q-self-eval)))
-           ;; XXX add line links & combine with below (maybe have it quoted in the comment box?)
-           (p "Their comments:" (pre ,(answer-comments q-self-eval)))
-           (p "What did they earn?")
-           ,{numeric-formlet . => . peer-score}
-           ,{evidence-formlet . => . comment})
-          (values peer-score comment))]
+         numeric-formlet]
         ['bool 
-         (formlet
+         boolean-formlet]))
+    (define the-formlet
+        (formlet
           (div
-           (p ,(format "The student thought they did~a fulfill the requirement."
-                       (if (answer:bool-value q-self-eval)
-                         ""
-                         "'nt")))
-           ;; XXX add line links
-           (p "Their comments:" (pre ,(answer-comments q-self-eval)))
-           (p "Did they fulfill the requirement?")
-           ,{boolean-formlet . => . peer-score}
+           ,(format-answer "Their" q-self-eval)
+           (p "What do you think they earned?")
+           ,{score-formlet . => . peer-score}
            ,{evidence-formlet . => . comment})
-          (values peer-score comment))]))
+          (values peer-score comment)))
     (define-values (score comment)
       (formlet-process
        the-formlet
@@ -629,11 +695,6 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         answer:numeric])
      (current-seconds) comment
      score))
-
-  (define (path->last-part f)
-    (define-values (base name must-be-dir?)
-      (split-path f))
-    (path->string name))
 
   (define (file->html-table a-id file)
     (define file-lines
@@ -664,15 +725,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                  (pre
                                   ,@(map line->line-content-div file-lines
                                          (build-list (length file-lines)
-                                                     add1)))))))))))
-
-  (define (display-files student a-id select)
-    (define files (assignment-files a-id))
-
-    (send/back
-     (template #:breadcrumb (list (cons (format "Files for ~a" a-id) #f))
-               `(div ([id "files"])
-                     ,@(map file->html-table files)))))
+                                                     add1)))))))))))  
 
   (define (logout req)
     (redirect-to
