@@ -805,6 +805,23 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
      #:headers
      (list (cookie->header logout-id-cookie))))
 
+  (define (secs->time-text secs)
+      (define s (if (secs . <= . 1) 1 secs))
+      (if (s . < . 0) (set! s 1) void)
+      (define unit
+        (findf (λ (unit-pair) (s . >= . (car unit-pair)))
+               `((,(* 60 60 24 7) . "week")
+                 (,(* 60 60 24) . "day")
+                 (,(* 60 60) . "hour")
+                 (60 . "minute")
+                 (1 . "second"))))
+      (format "~a ~a~a"
+              (quotient s (car unit))
+              (cdr unit)
+              (if (= 1 (quotient s (car unit)))
+                ""
+                "s")))
+  
   (define (page/main req)
     (when (is-admin?)
       (page/root req))
@@ -829,22 +846,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        (λ (a) (((assignment-due-secs a) . + . 2-days)
                . > . (current-seconds)))
        (sort assignments < #:key assignment-due-secs)))
-    (define (secs->time-text secs)
-      (define s (if (secs . <= . 1) 1 secs))
-      (if (s . < . 0) (set! s 1) void)
-      (define unit
-        (findf (λ (unit-pair) (s . >= . (car unit-pair)))
-               `((,(* 60 60 24 7) . "week")
-                 (,(* 60 60 24) . "day")
-                 (,(* 60 60) . "hour")
-                 (60 . "minute")
-                 (1 . "second"))))
-      (format "~a ~a~a"
-              (quotient s (car unit))
-              (cdr unit)
-              (if (= 1 (quotient s (car unit)))
-                ""
-                "s")))
+   
     ;; TODO render offline assignments (like the final) differently
     (define (render-assignment a)
       (define next-due
@@ -937,13 +939,13 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           (define seconds-left
             (- (assignment-due-secs assignment) (current-seconds)))
           (template
-           #:breadcrumb (list (cons (cons "Home" (main-url page/main)) 
-                                    (format "Manage Files - ~a" a-id) #f))
+           #:breadcrumb (list (cons "Home" (main-url page/main)) 
+                                    (cons (format "Manage Files - ~a" a-id) #f))
            ;; XXX use standard time duration display
            `(p ,(format "File Management for ~a ~a" a-id
                         (if (seconds-left . < . 0)
                           "is closed"
-                          (format "closes in ~a seconds" seconds-left))))
+                          (format "closes in ~a" (secs->time-text seconds-left)))))
            `(table
              (tr (th "Filename") (th "Delete?"))
              ,@(map
