@@ -11,7 +11,7 @@
   (find-seconds 0 0 17 day month year))
 
 (define musical-notation
-  (assignment 3/20 0 "music" (+ (current-seconds) 10) (+ (current-seconds) 60) (+ (current-seconds) 100)
+  (assignment 3/20 0 "music" (+ (current-seconds) 120) (+ (current-seconds) 360) (+ (current-seconds) 720)
    (list 
     (question 1 0 "Explain how musical notation is like a programming language." 'bool)
     (question 1 0 "Be sure that you have." 'bool)
