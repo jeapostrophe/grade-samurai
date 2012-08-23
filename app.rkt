@@ -32,6 +32,9 @@
 ;; XXX TODO Ask questions simultaneously and/or have better keyboarding
 ;; XXX TODO Allowing comments on self-eval answers after admin
 
+;; XXX TODO find uses of real->decimal string and unify to one
+;; function for displaying a %
+
 ;; XXX TODO Enforcing optional-enable
 ;; XXX TODO Dealing with your-split (wlang1/wlang2)
 
@@ -75,10 +78,15 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 (define (samurai-go!
          #:db db-path
          #:port port
-         #:assignments assignments
+         #:assignments pre-assignments
          #:authenticate authenticate-users
          #:username-request-text login-formlet-un-text
          #:password-request-text login-formlet-pw-text)
+
+  (define assignments
+    (sort pre-assignments
+          <=
+          #:key assignment-due-secs))
 
   (define secret-salt-path (build-path db-path "secret-salt"))
 
@@ -447,6 +455,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (format-grade default-grade)
     (define g (compute-grade default-grade))
+    ;; XXX use a span and add some css for good and bad colors
     (format "~a% (~a)"
             (real->decimal-string (* 100 g) 4)
             (letter-grade g)))
@@ -970,7 +979,37 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (render-admin)
     (send/suspend/dispatch
      (λ (embed/url)
-       (template #:breadcrumb (list (cons "Admin" #f))))))
+       (template 
+        #:breadcrumb (list (cons "Admin" #f))
+        ;; XXX grade next thing link
+        `(table 
+          (thead
+           (tr (th "User")
+               (th "Min")
+               (th "Max")
+               (th "Ungraded")))
+          (tbody
+           ,@(for/list ([u (in-list (users))])
+               (parameterize ([current-user u])
+               `(tr (td ,u)
+                    (td ,(format-grade 0))
+                    (td ,(format-grade 1))
+                    (td 
+                     ,@(for/list 
+                           ([a (in-list assignments)]
+                            #:when (past-due? (assignment-eval-secs a))
+                            #:unless (prof-eval-completed? a))
+                         (format "~a " (assignment-id a)))))))))))))
+
+  (define (past-due? secs)
+    (< secs (current-seconds)))
+  (define (prof-eval-completed? a)
+    (define id (assignment-id a))
+    (define qs (assignment-questions a))
+    (for/and ([q (in-list qs)]
+              [i (in-naturals)])
+      (file-exists?
+       (assignment-question-prof-grade-path id i))))
 
   (define current-user (make-parameter #f))
   (define current-user-type (make-parameter #f))
@@ -1052,7 +1091,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        (define maybe-id (request-valid-id-cookie secret-salt req))
        (match maybe-id
          [#f (login req)]
-         [(regexp #rx"^(.+):(.+)$" (list _ kind id))
+         [(regexp #rx"^(.+):(.+)$" (list _ (app string->symbol kind) id))
           (parameterize ([current-user id]
                          [current-user-type kind])
             (main-dispatch req))])]
