@@ -42,8 +42,8 @@
     ((string-length l) . >= . 80)))
 
 (module+ test
-         (require rackunit)
-         (check-equal? (contains-greater-than-80-char-line? #"
+  (require rackunit)
+  (check-equal? (contains-greater-than-80-char-line? #"
 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
@@ -52,7 +52,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 ") #t)
-         (check-equal? (contains-greater-than-80-char-line? #"
+  (check-equal? (contains-greater-than-80-char-line? #"
 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
@@ -78,12 +78,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          #:authenticate authenticate-users
          #:username-request-text login-formlet-un-text
          #:password-request-text login-formlet-pw-text)
-  
+
   (define secret-salt-path (build-path db-path "secret-salt"))
-  
+
   (define (id->assignment a-id)
     (findf (λ (a) (string=? a-id (assignment-id a))) assignments))
-  
+
   (define secret-salt
     (begin
       (unless (file-exists? secret-salt-path)
@@ -91,15 +91,15 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          (list->bytes (build-list 128 (λ (i) (random 256))))
          secret-salt-path))
       (file->bytes secret-salt-path)))
-  
+
   (define (is-admin?)
     (eq? 'admin (current-user-type)))
-  
+
   (define (show-root req)
     (if (is-admin?)
-        (render-admin)
-        (render-main)))
-  
+      (render-admin)
+      (render-main)))
+
   (define (login req [last-error #f])
     (define login-formlet
       (formlet
@@ -119,35 +119,35 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                       ,@(formlet-display login-formlet)
                       (input ([type "submit"] [value "Log in"])))
                 ,@(if last-error
-                      `((h1 ([class "error"]) ,last-error))
-                      '()))))))
+                    `((h1 ([class "error"]) ,last-error))
+                    '()))))))
     (define-values (username password)
       (formlet-process login-formlet log-req))
-    
+
     (define authenticated?
       (authenticate-users username password))
-    
+
     (if authenticated?
-        (redirect-to (main-url show-root)
-                     #:headers
-                     (list (cookie->header
-                            (make-id-cookie secret-salt
-                                            (format "~a:~a"
-                                                    authenticated?
-                                                    username)))))
-        (login req (format "Invalid password for user (~S)" username))))
-  
+      (redirect-to (main-url show-root)
+                   #:headers
+                   (list (cookie->header
+                          (make-id-cookie secret-salt
+                                          (format "~a:~a"
+                                                  authenticated?
+                                                  username)))))
+      (login req (format "Invalid password for user (~S)" username))))
+
   (define (default-text-input default-string)
     (to-string (default (string->bytes/utf-8 default-string)
                  (text-input #:value (string->bytes/utf-8 default-string)))))
-  
+
   (define (manage-account req)
     (define existing-info
       (cond
         [(file-exists? (user-info-path))
          (file->value (user-info-path))]
         [else (student "" "" "" "")]))
-    
+
     (define account-formlet
       (formlet
        (div ([id "form-inputs"])
@@ -167,7 +167,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
              (tr (td "Picture I can be recognized by: ")
                  (td ,{(file-upload) . => . photo}))))
        (values first-name last-name nick-name email photo)))
-    
+
     (define account-form
       (send/suspend
        (λ (k-url)
@@ -185,19 +185,19 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                            (current-user))]
                            [width "160"] [height "160"])))
                       (input ([type "submit"] [value "Update Info"]))))))))
-    
+
     (define-values (first-name last-name nick-name email photo)
       (formlet-process account-formlet account-form))
-    
+
     (write-to-file* (student nick-name first-name last-name email)
                     (user-info-path))
     (if (binding:file? photo)
-        (display-to-file* (binding:file-content photo)
-                          (user-image-path))
-        (void))
-    
+      (display-to-file* (binding:file-content photo)
+                        (user-image-path))
+      (void))
+
     (redirect-to (main-url show-root)))
-  
+
   (define (view-student req student)
     (cond
       [(or (is-admin?)
@@ -209,7 +209,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
            `(h1 "Student Page for " ,student))))]
       [else
        (redirect-to (main-url show-root))]))
-  
+
   (define-values (main-dispatch main-url main-applies?)
     (dispatch-rules+applies
      [("") show-root]
@@ -228,17 +228,17 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
      [("assignment" (string-arg) "view-eval") show-peer]
      [("assignment" (string-arg) "peer-eval" "next-question")
       evaluate-peer]))
-  
+
   (define (view-files req a-id)
     (template
      #:breadcrumb (list (cons "View Files" #f))
      (assignment-file-display a-id)))
-  
+
   (define (show-self req a-id)
     (error 'XXX))
   (define (show-peer req a-id)
     (error 'XXX))
-  
+
   (define (letter-grade ng)
     (cond
       [(> ng 0.93) "A"]
@@ -253,12 +253,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       [(> ng 0.63) "D"]
       [(> ng 0.60) "D-"]
       [else "F"]))
-  
+
   (define (assignment-peer id)
     (if (file-exists? (assignment-peer-path id))
-        (file->string (assignment-peer-path id))
-        "unassigned-peer"))
-  
+      (file->string (assignment-peer-path id))
+      "unassigned-peer"))
+
   (define (users-path)
     (build-path db-path "users"))
   (define (user-path)
@@ -273,8 +273,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (build-path (assignment-path id) "files"))
   (define (assignment-files id)
     (if (directory-exists? (assignment-file-path id))
-        (directory-list (assignment-file-path id))
-        empty))
+      (directory-list (assignment-file-path id))
+      empty))
   (define (assignment-peer-path id)
     (build-path (assignment-path id) "peer"))
   (define (assignment-question-student-grade-path id i)
@@ -283,46 +283,47 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (build-path (assignment-path id) "peer-eval" (number->string i)))
   (define (assignment-question-prof-grade-path id i)
     (build-path (assignment-path id) "prof-eval" (number->string i)))
-  
+
   ;; XXX cleanup this
   (define (assignment-question-student-bool-grade id i)
     (define p (assignment-question-student-grade-path id i))
     (if (file-exists? p)
-        (answer:bool-value (file->value p))
-        'n/a))
+      (answer:bool-value (file->value p))
+      'n/a))
   (define (assignment-question-student-bool-grade/peer id i)
     (define p (assignment-question-student-grade-path/peer id i))
     (if (file-exists? p)
-        (answer:bool-value (file->value p))
-        'n/a))
+      (answer:bool-value (file->value p))
+      'n/a))
   (define (assignment-question-student-numeric-grade/peer id i)
     (define p (assignment-question-student-grade-path/peer id i))
     (if (file-exists? p)
-        (answer:numeric-value (file->value p))
-        #f))
+      (answer:numeric-value (file->value p))
+      #f))
   (define (assignment-question-student-grade-path-of-peer peer-id a-id i)
-    (build-path (users-path) peer-id "assignments" a-id "self-eval" (number->string i)))
-  
+    (build-path (users-path) peer-id "assignments" a-id
+                "self-eval" (number->string i)))
+
   (define (assignment-question-prof-bool-grade id i)
     (define p (assignment-question-prof-grade-path id i))
     (if (file-exists? p)
-        (answer:bool-value (file->value p))
-        'n/a))
+      (answer:bool-value (file->value p))
+      'n/a))
   (define (assignment-question-prof-bool-grade/peer id i)
     (define peer (assignment-peer id))
     (parameterize ([current-user peer])
       (assignment-question-prof-bool-grade id i)))
-  
+
   (define (assignment-question-prof-numeric-grade id i)
     (define p (assignment-question-prof-grade-path id i))
     (if (file-exists? p)
-        (answer:numeric-value (file->value p))
-        #f))
+      (answer:numeric-value (file->value p))
+      #f))
   (define (assignment-question-prof-numeric-grade/peer id i)
     (define peer (assignment-peer id))
     (parameterize ([current-user peer])
       (assignment-question-prof-numeric-grade id i)))
-  
+
   (define (compute-question-grade optional? default-grade id i q)
     (match-define (question nw ow _ t) q)
     (define ow-p (if optional? ow 0))
@@ -332,8 +333,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          (or (assignment-question-prof-numeric-grade id i)
              default-grade)]
         ['bool
-         (define student-correct? (assignment-question-student-bool-grade id i))
-         (define prof-correct? (assignment-question-prof-bool-grade id i))
+         (define student-correct?
+           (assignment-question-student-bool-grade id i))
+         (define prof-correct?
+           (assignment-question-prof-bool-grade id i))
          (match* (student-correct? prof-correct?)
            [(  #t   #t) 10/10]
            [(  #t   #f) -1/10]
@@ -342,18 +345,20 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
            [('n/a    _) default-grade]
            [(   _ 'n/a) default-grade])]))
     (* (+ nw ow-p) ps))
-  
+
   (define (compute-peer-grade optional? default-grade id i q)
     (match-define (question nw ow _ t) q)
     (define ow-p (if optional? ow 0))
     (define ps
       (match t
         ['numeric
-         (define prof (assignment-question-prof-numeric-grade/peer id i))
-         (define student (assignment-question-student-numeric-grade/peer id i))
+         (define prof
+           (assignment-question-prof-numeric-grade/peer id i))
+         (define student
+           (assignment-question-student-numeric-grade/peer id i))
          (if (and prof student)
-             (- 1 (abs (- prof student)))
-             default-grade)]
+           (- 1 (abs (- prof student)))
+           default-grade)]
         ['bool
          (define prof (assignment-question-prof-bool-grade/peer id i))
          (define student (assignment-question-student-bool-grade/peer id i))
@@ -366,19 +371,19 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
            [else
             0])]))
     (* (+ nw ow-p) ps))
-  
+
   (define ((make-compute-question-grades compute-question-grade)
            optional? default-grade id qs)
     (for/sum
      ([q (in-list qs)]
       [i (in-naturals)])
      (compute-question-grade optional? default-grade id i q)))
-  
+
   (define compute-question-grades
     (make-compute-question-grades compute-question-grade))
   (define compute-peer-grades
     (make-compute-question-grades compute-peer-grade))
-  
+
   (define (compute-grade default-grade)
     (for/sum
      ([a (in-list assignments)])
@@ -393,11 +398,11 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         #t default-grade
         id qs))
      (if (number? ps)
-         (* (+ ow nw)
-            (+ (* 9/10 self-pts)
-               (* 1/10 peer-pts)))
-         (* (+ ow nw) self-pts))))
-  
+       (* (+ ow nw)
+          (+ (* 9/10 self-pts)
+             (* 1/10 peer-pts)))
+       (* (+ ow nw) self-pts))))
+
   (define (assignment-file-display a-id)
     `(div ([id "files"])
           ,@(map
@@ -405,13 +410,13 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                ((curry file->html-table a-id)
                 (build-path (assignment-file-path a-id) file)))
              (assignment-files a-id))))
-  
+
   (define (format-grade default-grade)
     (define g (compute-grade default-grade))
     (format "~a% (~a)"
             (real->decimal-string (* 100 g) 4)
             (letter-grade g)))
-  
+
   (define boolean-formlet
     (formlet
      (p ,{(radio-group '(#t #f)
@@ -424,7 +429,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
      (p ,{(to-number input-string) . => . percent}
         "(Enter a number between 0 and 1)")
      percent))
-  
+
   (define (evaluate-self req a-id)
     (define assignment (id->assignment a-id))
     (define files (assignment-files a-id))
@@ -464,121 +469,147 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           answer:numeric])
        (current-seconds) explanation
        score))
-    
+
     (define (overdue-or thunk)
       (if (<= (assignment-eval-secs assignment) (current-seconds))
-          (template
-           #:breadcrumb (list (cons "Self Eval" #f))
-           "Self evaluation past due.")
-          (thunk)))
-    
+        (send/back
+         (template
+          #:breadcrumb (list (cons "Self Eval" #f))
+          "Self evaluation past due."))
+        (thunk)))
+
     (overdue-or
      (λ ()
        (for ([question (assignment-questions assignment)]
              [i (in-naturals)])
-         (unless (file-exists? (assignment-question-student-grade-path a-id i))
+         (unless
+             (file-exists? (assignment-question-student-grade-path a-id i))
            (define answer (ask-question question))
-           (overdue-or 
+           (overdue-or
             (λ ()
               (write-to-file*
                answer
                (assignment-question-student-grade-path a-id i))))))
-       
+
        (template
         #:breadcrumb (list (cons "Self Eval" #f))
         "Self evaluation completed."))))
-  
+
   (define (evaluate-peer req a-id)
     (define assignment (id->assignment a-id))
     (define (pick-a-person)
       (define student-ids
         (map path->last-part (directory-list (users-path))))
       (define finished-self-eval
-        (map car 
-             (filter (λ (u-f)(file-exists? (cdr u-f))) 
-                     (map (λ (un) (cons un (assignment-question-student-grade-path a-id 0)))
-                          student-ids))))
+        (map
+         car
+         (filter
+          (λ (u-f)(file-exists? (cdr u-f)))
+          (map
+           (λ (un)
+             (cons un
+                   (assignment-question-student-grade-path a-id 0)))
+           student-ids))))
       (define already-assigned
-        (map (λ (u-f) (file->value (car u-f)))
-             (filter (λ (u-f)(file-exists? (cdr u-f)))
-                     (map (λ (un) (cons un (assignment-peer-path a-id)))
-                          student-ids))))
-      (define candidates (remove (current-user) 
-                                 (remove* already-assigned finished-self-eval)))
-      (define peer (first (shuffle candidates)))
-      (displayln (format "~a\t~a\t~a\t~a\t~a" student-ids finished-self-eval already-assigned candidates peer))
-      (write-to-file* peer (assignment-peer-path a-id))
-      peer)
-    
-    (define peer-id
-      (if (file-exists? (assignment-peer-path a-id))
-          (file->value (assignment-peer-path a-id))
-          (pick-a-person)))
-    
-    (define (overdue-or thunk)
-      (if (<= (assignment-peer-secs assignment) (current-seconds))
+        (map
+         (λ (u-f) (file->value (car u-f)))
+         (filter (λ (u-f)(file-exists? (cdr u-f)))
+                 (map (λ (un) (cons un (assignment-peer-path a-id)))
+                      student-ids))))
+      (define candidates
+        (remove (current-user)
+                (remove* already-assigned finished-self-eval)))
+      (match (shuffle candidates)
+        [(list* peer _)
+         (displayln (format "~a\t~a\t~a\t~a\t~a" student-ids finished-self-eval already-assigned candidates peer))
+         (write-to-file* peer (assignment-peer-path a-id))
+         peer]
+        [(list)
+         (send/back
           (template
            #:breadcrumb (list (cons "Peer Eval" #f))
-           "Peer evaluation past due.")
-          (thunk)))
-    
+           "Peer evaluation is impossible, as no peers are available."))]))
+
+    (define peer-id
+      (if (file-exists? (assignment-peer-path a-id))
+        (file->value (assignment-peer-path a-id))
+        (pick-a-person)))
+
+    (define (overdue-or thunk)
+      (if (<= (assignment-peer-secs assignment) (current-seconds))
+        (send/back
+         (template
+          #:breadcrumb (list (cons "Peer Eval" #f))
+          "Peer evaluation past due."))
+        (thunk)))
+
     (overdue-or
      (λ ()
        (for ([question (assignment-questions assignment)]
              [i (in-naturals)])
-         (unless (and (file-exists? (assignment-question-student-grade-path/peer a-id i))
-                      (not (file-exists? (assignment-question-student-grade-path peer-id a-id i))))
-           (define grade (grade-question peer-id a-id question 
-                                         (file->value (assignment-question-student-grade-path-of-peer peer-id a-id i))))
-           (overdue-or 
+         (unless
+             (and
+              (file-exists?
+               (assignment-question-student-grade-path/peer a-id i))
+              (not
+               (file-exists?
+                (assignment-question-student-grade-path peer-id a-id i))))
+           (define grade
+             (grade-question
+              peer-id a-id question
+              (file->value
+               (assignment-question-student-grade-path-of-peer
+                peer-id a-id i))))
+           (overdue-or
             (λ ()
               (write-to-file*
                grade
                (assignment-question-student-grade-path/peer a-id i))))))
-       
+
        (template
         #:breadcrumb (list (cons "Peer Eval" #f))
         "Peer evaluation completed."))))
-  
+
   (define (grade-question stu a-id question q-self-eval)
     (define num-formlet
       (formlet
        (div
-        (p ,(format "The student thought they earned ~a" (answer:numeric-value q-self-eval)))
+        (p ,(format "The student thought they earned ~a"
+                    (answer:numeric-value q-self-eval)))
         ,{numeric-formlet . => . peer-score})
        (values peer-score)))
     (define bool-formlet
       (formlet
        (div
-        (p ,(format "The student thought they did~a fulfill the requirement." 
+        (p ,(format "The student thought they did~a fulfill the requirement."
                     (if (answer:bool-value q-self-eval)
-                        ""
-                        "'nt")))
+                      ""
+                      "'nt")))
         (p "Did they fulfill the requirement?")
         ,{boolean-formlet . => . peer-score})
        (values peer-score)))
     #;(define question-formlet
-        (formlet
-         (div
-          ,(match (question-type question) 
-             ['numeric
-              `(div
-                (p ,(format "The student thought they earned ~a" (answer:numeric-value q-self-eval)))
-                ,{numeric-formlet . => . peer-score})]
-             ['bool
-              `(div
-                (p ,(format "The student thought they did~a fulfill the requirement." 
-                            (if (answer:bool-value q-self-eval)
-                                ""
-                                "'nt")))
-                (p "Did they fulfill the requirement?")
-                ,{boolean-formlet . => . peer-score})]))
-         (values peer-score)))
+    (formlet
+    (div
+    ,(match (question-type question)
+    ['numeric
+    `(div
+    (p ,(format "The student thought they earned ~a" (answer:numeric-value q-self-eval)))
+    ,{numeric-formlet . => . peer-score})]
+    ['bool
+    `(div
+    (p ,(format "The student thought they did~a fulfill the requirement."
+    (if (answer:bool-value q-self-eval)
+    ""
+    "'nt")))
+    (p "Did they fulfill the requirement?")
+    ,{boolean-formlet . => . peer-score})]))
+    (values peer-score)))
     (define-values (score)
       (formlet-process
-       (match (question-type question) 
-          ['numeric num-formlet]
-          ['bool bool-formlet])
+       (match (question-type question)
+         ['numeric num-formlet]
+         ['bool bool-formlet])
        (send/suspend
         (λ (k-url)
           (template
@@ -591,9 +622,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                (td
                 (p ,(question-prompt question))
                 (form ([action ,k-url] [method "post"])
-                      ,@(formlet-display (match (question-type question) 
-                                            ['numeric num-formlet]
-                                            ['bool bool-formlet]))
+                      ,@(formlet-display (match (question-type question)
+                                           ['numeric num-formlet]
+                                           ['bool bool-formlet]))
                       (input ([type "submit"] [value "Submit"]))))))))))))
     ((match (question-type question)
        ['bool
@@ -602,21 +633,21 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         answer:numeric])
      (current-seconds) empty
      score))
-  
+
   (define (path->last-part f)
     (define-values (base name must-be-dir?)
       (split-path f))
     (path->string name))
-  
-  
+
   (define (file->html-table a-id file)
-    (define file-lines (string-split (bytes->string/utf-8 (file->bytes file))
-                                     #px"\r\n?|\n"
-                                     #:trim? #f))
+    (define file-lines
+      (string-split (bytes->string/utf-8 (file->bytes file))
+                    #px"\r\n?|\n"
+                    #:trim? #f))
     (define (line->line-content-div line line-num)
       `(div ([id ,(format "~aLC~a" file line-num)][class "line"])
             ,((λ (l)(if (string=? "" l) '(br) l)) line)))
-    
+
     `(div ([class "file"])
           (div ([class "meta"]) ,(format "~a" (path->last-part file)))
           (div ([class "data type-text"])
@@ -638,21 +669,21 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                   ,@(map line->line-content-div file-lines
                                          (build-list (length file-lines)
                                                      add1)))))))))))
-  
+
   (define (display-files student a-id select)
     (define files (assignment-files a-id))
-    
+
     (send/back
      (template #:breadcrumb (list (cons (format "Files for ~a" a-id) #f))
                `(div ([id "files"])
                      ,@(map file->html-table files)))))
-  
+
   (define (logout req)
     (redirect-to
      (main-url show-root)
      #:headers
      (list (cookie->header logout-id-cookie))))
-  
+
   (define (render-main)
     (define a-day (* 60 60 24))
     (define 2-days (* a-day 2))
@@ -669,7 +700,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          `(a ([href ,link2]) ,text2)]
         [else
          `(a ([href ,link1]) ,text1)]))
-    (define-values (upcoming past);; TODO base off which phases they can still do
+    ;; TODO base off which phases they can still do
+    (define-values (upcoming past)
       (partition
        (λ (a) (((assignment-due-secs a) . + . 2-days)
                . > . (current-seconds)))
@@ -688,8 +720,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
               (quotient s (car unit))
               (cdr unit)
               (if (= 1 (quotient s (car unit)))
-                  ""
-                  "s")))
+                ""
+                "s")))
     ;; TODO
     (define (self-eval-completed? a-id user) #f)
     ;; TODO render offline assignments (like the final) differently
@@ -702,7 +734,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
            (assignment-eval-secs a)]
           [else
            (assignment-due-secs a)]))
-      
+
       `(table ([class ,(cond
                          [(not (zero? (assignment-optional-weight a)))
                           "optional"]
@@ -753,7 +785,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
               ,@(map render-assignment upcoming))
         `(div ([id "past-assignments"])
               ,@(map render-assignment past))))))
-  
+
   (define (delete-a-file req a-id file-to-delete)
     (define assignment
       (findf (λ (a) (string=? a-id (assignment-id a))) assignments))
@@ -763,7 +795,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (when (file-exists? file-path)
         (delete-file file-path)))
     (redirect-to (main-url manage-files a-id)))
-  
+
   (define (manage-files req a-id)
     (define assignment
       (findf (λ (a) (string=? a-id (assignment-id a))) assignments))
@@ -779,8 +811,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
            #:breadcrumb (list (cons (format "Manage Files - ~a" a-id) #f))
            `(p ,(format "File Management for ~a ~a" a-id
                         (if (seconds-left . < . 0)
-                            "is closed"
-                            (format "closes in ~a seconds" seconds-left))))
+                          "is closed"
+                          (format "closes in ~a seconds" seconds-left))))
            `(table
              (tr (th "Filename") (th "Delete?"))
              ,@(map
@@ -810,7 +842,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                    (bytes->string/utf-8
                     (binding:file-filename new-file-binding)))))
     (redirect-to (main-url manage-files a-id)))
-  
+
   (define (template #:breadcrumb bc
                     . bodies)
     (response/xexpr
@@ -824,42 +856,42 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                   ,@(for/list ([b (in-list bc)])
                       (match-define (cons name url) b)
                       (if url
-                          `(span (a ([href ,url]) ,name) " / ")
-                          `(span ([class "this"]) ,name)))
+                        `(span (a ([href ,url]) ,name) " / ")
+                        `(span ([class "this"]) ,name)))
                   ,(if (current-user)
-                       `(span ([id "logout"])
-                              ,(current-user) " | "
-                              (a ([href ,(main-url logout)]) "logout"))
-                       ""))
+                     `(span ([id "logout"])
+                            ,(current-user) " | "
+                            (a ([href ,(main-url logout)]) "logout"))
+                     ""))
              (div ([class "content"])
                   ,@bodies
                   ,(footer))))))
-  
+
   (define (view-student-photo req student)
     (define user-img-path (user-image-path))
     (define user-info-path (user-info-path))
     (define user-email
       (if (file-exists? user-info-path)
-          (student-email (file->value user-info-path))
-          ""))
+        (student-email (file->value user-info-path))
+        ""))
     (if (file-exists? user-img-path)
-        (response/full
-         200 #"Okay"
-         (current-seconds) #"image/jpg"
-         empty
-         (list (file->bytes user-img-path)))
-        (redirect-to
-         (format "http://www.gravatar.com/avatar/~a?s=160&d=mm"
-                 (md5 (string-downcase (string-trim-both user-email)))))))
-  
+      (response/full
+       200 #"Okay"
+       (current-seconds) #"image/jpg"
+       empty
+       (list (file->bytes user-img-path)))
+      (redirect-to
+       (format "http://www.gravatar.com/avatar/~a?s=160&d=mm"
+               (md5 (string-downcase (string-trim-both user-email)))))))
+
   (define (render-admin)
     (send/suspend/dispatch
      (λ (embed/url)
        (template #:breadcrumb (list (cons "Admin" #f))))))
-  
+
   (define current-user (make-parameter #f))
   (define current-user-type (make-parameter #f))
-  
+
   (define (footer)
     `(div ([id "footer"])
           "Powered by "
@@ -867,7 +899,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           "Written by "
           (a ([href "http://trevoroakes.com/"]) "Trevor Oakes") " and "
           (a ([href "http://faculty.cs.byu.edu/~jay"]) "Jay McCarthy") ". "))
-  
+
   (define (tabs header . the-tabs)
     (define found-selected? #f)
     (define tab-seq
@@ -894,8 +926,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        (ul
         ,@(for/list ([v (in-vector tab-seq)])
             (match-define
-              (vector id selected? no-content? label body)
-              v)
+             (vector id selected? no-content? label body)
+             v)
             (define direct-link
               (match body
                 [(cons #f url) url]
@@ -912,9 +944,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                            ,(format
                              "javascript:~a~a;"
                              (for/fold ([s ""])
-                               ([v (in-vector tab-seq)])
+                                 ([v (in-vector tab-seq)])
                                (match-define
-                                 (vector id selected? no-content? label _) v)
+                                (vector id selected? no-content? label _) v)
                                (format "ToggleOff(~S);~a" id s))
                              (format "ToggleOn(~S)" id))])
                          ,label)])))))
@@ -926,11 +958,11 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
               [_ #f]))
           `(div ([id ,id]
                  [style ,(if selected?
-                             "display: block"
-                             "display: none")]
+                           "display: block"
+                           "display: none")]
                  [class "tab-content"])
                 ,(if direct-link "" body)))))
-  
+
   (define (require-login-then-dispatch req)
     (cond
       [(main-applies? req)
@@ -942,7 +974,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                          [current-user-type kind])
             (main-dispatch req))])]
       [else (next-dispatcher)]))
-  
+
   (serve/servlet
    require-login-then-dispatch
    #:port port
