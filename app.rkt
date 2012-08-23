@@ -75,6 +75,31 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (make-parent-directory* pth)
   (write-to-file v pth #:exists 'replace))
 
+(define (letter-grade ng)
+    (cond
+      [(> ng 0.93) "A"]
+      [(> ng 0.90) "A-"]
+      [(> ng 0.86) "B+"]
+      [(> ng 0.83) "B"]
+      [(> ng 0.80) "B-"]
+      [(> ng 0.76) "C+"]
+      [(> ng 0.73) "C"]
+      [(> ng 0.70) "C-"]
+      [(> ng 0.66) "D+"]
+      [(> ng 0.63) "D"]
+      [(> ng 0.60) "D-"]
+      [else "F"]))
+
+(define (path->last-part f)
+    (define-values (base name must-be-dir?)
+      (split-path f))
+    (path->string name))
+
+  (define (directory-list* pth)
+    (if (directory-exists? pth)
+      (map path->last-part (directory-list pth))
+      empty))
+
 (define-runtime-path source-dir ".")
 
 (define (samurai-go!
@@ -106,12 +131,13 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (is-admin?)
     (eq? 'admin (current-user-type)))
 
-  (define (show-root req)
-    (if (is-admin?)
-      (render-admin)
-      (render-main)))
+  (define (page/root req)
+    (send/back
+     (if (is-admin?)
+       (redirect-to (main-url page/admin))
+       (redirect-to (main-url page/main)))))
 
-  (define (login req [last-error #f])
+  (define (page/login req [last-error #f])
     (define login-formlet
       (formlet
        (table
@@ -152,13 +178,14 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                           (format "~a:~a"
                                                   authenticated?
                                                   username)))))]
-      [else (login req (format "Invalid password for user (~S)" username))]))
+      [else (page/login req (format "Invalid password for user (~S)" username))]))
+
 
   (define (default-text-input default-string)
     (to-string (default (string->bytes/utf-8 default-string)
                  (text-input #:value (string->bytes/utf-8 default-string)))))
 
-  (define (manage-account req)
+  (define (page/account req)
     (define existing-info
       (cond
         [(file-exists? (user-info-path))
@@ -198,7 +225,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                       ,@(formlet-display account-formlet)
                       (p "Instead of this: "
                          (img
-                          ([src ,(main-url view-student-photo
+                          ([src ,(main-url page/student/photo
                                            (current-user))]
                            [width "160"] [height "160"])))
                       (input ([type "submit"] [value "Update Info"]))))))))
@@ -208,14 +235,13 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
     (write-to-file* (student nick-name first-name last-name email)
                     (user-info-path))
-    (if (binding:file? photo)
+    (when (binding:file? photo)
       (display-to-file* (binding:file-content photo)
-                        (user-image-path))
-      (void))
+                        (user-image-path)))
 
-    (redirect-to (main-url show-root)))
+    (redirect-to (main-url page/root)))
 
-  (define (view-student req student)
+  (define (page/student req student)
     (cond
       [(or (is-admin?)
            (string=? (current-user) student))
@@ -224,47 +250,47 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          #:breadcrumb (list (cons student #f))
          `(h1 "Student Page for " ,student)))]
       [else
-       (redirect-to (main-url show-root))]))
+       (redirect-to (main-url page/root))]))
 
   (define-values (main-dispatch main-url main-applies?)
     (dispatch-rules+applies
-     [("") show-root]
-     [("admin" "grade-next") page/admin/grade-next]
-     [("login") login]
-     [("logout") logout]
-     [("account") manage-account]
-     [("student" (string-arg)) view-student]
-     [("student" (string-arg) "photo") view-student-photo]
-     [("assignment" (string-arg) "manage-files") manage-files]
-     [("assignment" (string-arg) "manage-files" "delete" (string-arg))
-      delete-a-file]
-     [("assignment" (string-arg) "view-files") view-files]
-     [("assignment" (string-arg) "self-eval") evaluate-self]
-     [("assignment" (string-arg) "view-self-eval") show-self]
-     [("assignment" (string-arg) "peer-eval") evaluate-peer]
-     [("assignment" (string-arg) "view-eval") show-peer]
-     [("assignment" (string-arg) "peer-eval" "next-question")
-      evaluate-peer]))
+     [("")
+      page/root]
+     [("main")
+      page/main]
+     [("admin")
+      page/admin]
+     [("admin" "grade-next")
+      page/admin/grade-next]
+     [("login")
+      page/login]
+     [("logout")
+      page/logout]
+     [("account")
+      page/account]
+     [("student" (string-arg))
+      page/student]
+     [("student" (string-arg) "photo.jpg")
+      page/student/photo]
+     [("assignment" (string-arg) "files" "edit")
+      page/assignment/files/edit]
+     [("assignment" (string-arg) "files" "delete" (string-arg))
+      page/assignment/files/delete]
+     [("assignment" (string-arg) "files") 
+      page/assignment/files]
+     [("assignment" (string-arg) "self" "edit")
+      page/assignment/self/edit]
+     [("assignment" (string-arg) "self")
+      page/assignment/self]
+     [("assignment" (string-arg) "peer" "edit")
+      page/assignment/peer/edit]
+     [("assignment" (string-arg) "peer")
+      page/assignment/peer]))
 
-  (define (view-files req a-id)
+  (define (page/assignment/files req a-id)
     (template
      #:breadcrumb (list (cons "View Files" #f))
-     (assignment-file-display a-id)))
-
-  (define (letter-grade ng)
-    (cond
-      [(> ng 0.93) "A"]
-      [(> ng 0.90) "A-"]
-      [(> ng 0.86) "B+"]
-      [(> ng 0.83) "B"]
-      [(> ng 0.80) "B-"]
-      [(> ng 0.76) "C+"]
-      [(> ng 0.73) "C"]
-      [(> ng 0.70) "C-"]
-      [(> ng 0.66) "D+"]
-      [(> ng 0.63) "D"]
-      [(> ng 0.60) "D-"]
-      [else "F"]))
+     (assignment-file-display a-id)))  
 
   (define default-peer
     "The Spanish Inquisition")
@@ -278,17 +304,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                        (parameterize ([current-user u])
                          (assignment-peer id)))
                u))
-        default-peer))
-
-  (define (path->last-part f)
-    (define-values (base name must-be-dir?)
-      (split-path f))
-    (path->string name))
-
-  (define (directory-list* pth)
-    (if (directory-exists? pth)
-      (map path->last-part (directory-list pth))
-      empty))
+        default-peer))  
 
   (define (users-path)
     (build-path db-path "users"))
@@ -488,7 +504,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           (p "(If you need to refer to line numbers, prefix a number with L. For example, use L32 or l32 to refer to line 32)"))
      comment))
 
-  (define (evaluate-self req a-id)
+  (define (page/assignment/self/edit req a-id)
     (define assignment (id->assignment a-id))
     (define (ask-question q)
       (define question-formlet
@@ -569,7 +585,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        `(div ([class ,(format "answer incomplete ~a" which)])
              (p ,(format "Your ~a evaluation is not completed." which)))]))
 
-  (define (show-self req a-id)
+  (define (page/assignment/self req a-id)
     (define assignment (id->assignment a-id))
     (template
      #:breadcrumb (list (cons "Self Evaluation" #f))
@@ -597,7 +613,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                       (assignment-question-peer-grade a-id i))))))))))
 
   ;; XXX abstract this and above
-  (define (show-peer req a-id)
+  (define (page/assignment/peer req a-id)
     (define assignment (id->assignment a-id))
     (define peer (assignment-peer a-id))
     (if (equal? default-peer peer)
@@ -633,7 +649,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                     "Peer"
                     (assignment-question-student-grade/peer a-id i)))))))))))
 
-  (define (evaluate-peer req a-id)
+  (define (page/assignment/peer/edit req a-id)
     (define assignment (id->assignment a-id))
     (define (pick-a-person)
       (define student-ids (users))
@@ -778,13 +794,15 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                          (build-list (length file-lines)
                                                      add1)))))))))))
 
-  (define (logout req)
+  (define (page/logout req)
     (redirect-to
-     (main-url show-root)
+     (main-url page/root)
      #:headers
      (list (cookie->header logout-id-cookie))))
 
-  (define (render-main)
+  (define (page/main req)
+    (when (is-admin?)
+      (page/root req))
     (define a-day (* 60 60 24))
     (define 2-days (* a-day 2))
     (define (cond-hyperlink available closed text1 link1 text2 link2)
@@ -826,7 +844,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (define (render-assignment a)
       (define next-due
         (cond
-          ;; XXX if peer is completed, give back a #f
+          [(peer-eval-completed? a)
+           #f]
           [(self-eval-completed? a)
            (assignment-peer-secs a)]
           [(> (current-seconds) (assignment-due-secs a))
@@ -857,21 +876,26 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
               (tr (td ,(cond-hyperlink
                         (current-seconds) (assignment-due-secs a)
                         "Turn in Files"
-                        (main-url manage-files (assignment-id a))
+                        (main-url page/assignment/files/edit
+                                  (assignment-id a))
                         "View Files"
-                        (main-url view-files (assignment-id a))))
+                        (main-url page/assignment/files (assignment-id a))))
                   (td ,(cond-hyperlink
                         (assignment-due-secs a) (assignment-eval-secs a)
                         "Self Evaluation"
-                        (main-url evaluate-self (assignment-id a))
+                        (main-url page/assignment/self/edit
+                                  (assignment-id a))
                         "Self Evaluation Details"
-                        (main-url show-self (assignment-id a))))
+                        (main-url page/assignment/self
+                                  (assignment-id a))))
                   (td ,(cond-hyperlink
                         (assignment-eval-secs a) (assignment-peer-secs a)
                         "Grade a Peer"
-                        (main-url evaluate-peer (assignment-id a))
+                        (main-url page/assignment/peer/edit
+                                  (assignment-id a))
                         "Grade a Peer Details"
-                        (main-url show-peer (assignment-id a)))))))
+                        (main-url page/assignment/peer
+                                  (assignment-id a)))))))
     (send/back
      (template
       #:breadcrumb (list (cons "Student Main Page" #f))
@@ -886,7 +910,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       `(div ([id "past-assignments"])
             ,@(map render-assignment past)))))
 
-  (define (delete-a-file req a-id file-to-delete)
+  (define (page/assignment/files/delete req a-id file-to-delete)
     (define assignment
       (findf (λ (a) (string=? a-id (assignment-id a))) assignments))
     (when (< (current-seconds) (assignment-due-secs assignment))
@@ -894,9 +918,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         (build-path (assignment-file-path a-id) file-to-delete))
       (when (file-exists? file-path)
         (delete-file file-path)))
-    (redirect-to (main-url manage-files a-id)))
+    (redirect-to (main-url page/assignment/files/edit a-id)))
 
-  (define (manage-files req a-id)
+  (define (page/assignment/files/edit req a-id)
     (define assignment
       (findf (λ (a) (string=? a-id (assignment-id a))) assignments))
     (define (extract-binding:file req)
@@ -909,6 +933,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             (- (assignment-due-secs assignment) (current-seconds)))
           (template
            #:breadcrumb (list (cons (format "Manage Files - ~a" a-id) #f))
+           ;; XXX use standard time duration display
            `(p ,(format "File Management for ~a ~a" a-id
                         (if (seconds-left . < . 0)
                           "is closed"
@@ -918,8 +943,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
              ,@(map
                 (λ (file-path)
                   `(tr (td ,(path->string file-path))
-                       (td (a ([href ,(main-url delete-a-file a-id
-                                                (path->string file-path))])
+                       (td (a ([href ,(main-url 
+                                       page/assignment/files/delete a-id
+                                       (path->string file-path))])
                               "X"))))
                 (assignment-files a-id)))
            ;; XXX Add a textarea box
@@ -941,7 +967,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        (build-path (assignment-file-path a-id)
                    (bytes->string/utf-8
                     (binding:file-filename new-file-binding)))))
-    (redirect-to (main-url manage-files a-id)))
+    (redirect-to (main-url page/assignment/files/edit a-id)))
 
   (define (template #:breadcrumb bc
                     . bodies)
@@ -961,7 +987,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                   ,(if (current-user)
                      `(span ([id "logout"])
                             ,(current-user) " | "
-                            (a ([href ,(main-url logout)]) "logout"))
+                            (a ([href ,(main-url page/logout)]) "logout"))
                      ""))
              (div ([class "content"])
                   ,@bodies
@@ -1039,6 +1065,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             the-formlet
             (send/suspend
              (λ (k-url)
+               ;; XXX displays the current user wrong because of the
+               ;; parameterize above
                (template
                 #:breadcrumb (list (cons "Admin > Grade" #f))
                 `(div
@@ -1078,7 +1106,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          #:breadcrumb (list (cons "Admin > Grade Next" #f))
          "All grading is done! Great!"))]))
 
-  (define (render-admin)
+  (define (page/admin req)
+    (unless (is-admin?)
+      (page/root req))
+
     (send/back
      (template
       #:breadcrumb (list (cons "Admin" #f))
@@ -1110,6 +1141,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
               [i (in-naturals)])
       (file-exists?
        (assignment-question-prof-grade-path id i))))
+  (define peer-eval-completed?
+    (make-prof-eval-completed? assignment-question-student-grade-path/peer))
   (define self-eval-completed?
     (make-prof-eval-completed? assignment-question-student-grade-path))
   (define prof-eval-completed?
@@ -1194,7 +1227,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       [(main-applies? req)
        (define maybe-id (request-valid-id-cookie secret-salt req))
        (match maybe-id
-         [#f (login req)]
+         [#f (page/login req)]
          [(regexp #rx"^(.+):(.+)$" (list _ (app string->symbol kind) id))
           (parameterize ([current-user id]
                          [current-user-type kind])
