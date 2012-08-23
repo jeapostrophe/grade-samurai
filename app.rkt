@@ -24,8 +24,8 @@
 
 (define DEBUG? #t)
 
+;; XXX TODO Ask questions simultaneously and/or have better keyboarding
 ;; XXX TODO Showing self-eval answers
-;; XXX TODO Performing peer-eval
 ;; XXX TODO Showing peer-eval answers
 ;; XXX TODO Doing admin eval
 ;; XXX TODO Allowing comments on self-eval answers after admin
@@ -284,11 +284,15 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (assignment-question-prof-grade-path id i)
     (build-path (assignment-path id) "prof-eval" (number->string i)))
 
+  (define (assignment-question-student-grade id i)
+    (define p (assignment-question-student-grade-path id i))
+    (and (file-exists? p) (file->value p)))
+
   ;; XXX cleanup this
   (define (assignment-question-student-bool-grade id i)
-    (define p (assignment-question-student-grade-path id i))
-    (if (file-exists? p)
-      (answer:bool-value (file->value p))
+    (define v (assignment-question-student-grade id i))
+    (if v
+      (answer:bool-value v)
       'n/a))
   (define (assignment-question-student-bool-grade/peer id i)
     (define p (assignment-question-student-grade-path/peer id i))
@@ -299,10 +303,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (define p (assignment-question-student-grade-path/peer id i))
     (if (file-exists? p)
       (answer:numeric-value (file->value p))
-      #f))
-  (define (assignment-question-student-grade-path-of-peer peer-id a-id i)
-    (build-path (users-path) peer-id "assignments" a-id
-                "self-eval" (number->string i)))
+      #f))  
 
   (define (assignment-question-prof-bool-grade id i)
     (define p (assignment-question-prof-grade-path id i))
@@ -430,6 +431,13 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         "(Enter a number between 0 and 1)")
      percent))
 
+  (define evidence-formlet
+    (formlet
+     (div (p "Provide evidence to justify that score.")
+          ,{(to-string (required (textarea-input #:rows 8 #:cols 80))) . => . comment}
+          (p "(If you need to refer to line numbers, prefix a number with L. For example, use L32 or l32 to refer to line 32)"))
+     comment))
+
   (define (evaluate-self req a-id)
     (define assignment (id->assignment a-id))
     (define files (assignment-files a-id))
@@ -441,9 +449,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
               ['bool boolean-formlet]
               ['numeric numeric-formlet])
             . => . score}
-          (p "Provide evidence to justify that score.")
-          ,{(to-string (required (textarea-input #:rows 8 #:cols 80))) . => . comment}
-          (p "(If you need to refer to line numbers, prefix a number with L. For example, use L32 or l32 to refer to line 32)"))
+          ,{evidence-formlet . => . comment})
          (values score comment)))
       (define-values (score explanation)
         (formlet-process
@@ -521,8 +527,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                 (remove* already-assigned finished-self-eval)))
       (match (shuffle candidates)
         [(list* peer _)
-         (displayln (format "~a\t~a\t~a\t~a\t~a" student-ids finished-self-eval already-assigned candidates peer))
-         (write-to-file* peer (assignment-peer-path a-id))
+         (display-to-file* peer (assignment-peer-path a-id))
          peer]
         [(list)
          (send/back
@@ -532,7 +537,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
     (define peer-id
       (if (file-exists? (assignment-peer-path a-id))
-        (file->value (assignment-peer-path a-id))
+        (assignment-peer a-id)
         (pick-a-person)))
 
     (define (overdue-or thunk)
@@ -548,18 +553,18 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        (for ([question (assignment-questions assignment)]
              [i (in-naturals)])
          (unless
-             (and
+             (or
               (file-exists?
                (assignment-question-student-grade-path/peer a-id i))
               (not
                (file-exists?
-                (assignment-question-student-grade-path peer-id a-id i))))
+                (parameterize ([current-user peer-id])
+                  (assignment-question-student-grade-path a-id i)))))
            (define grade
              (grade-question
               peer-id a-id question
-              (file->value
-               (assignment-question-student-grade-path-of-peer
-                peer-id a-id i))))
+              (parameterize ([current-user peer-id])
+                (assignment-question-student-grade a-id i))))
            (overdue-or
             (λ ()
               (write-to-file*
@@ -570,46 +575,32 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         #:breadcrumb (list (cons "Peer Eval" #f))
         "Peer evaluation completed."))))
 
-  (define (grade-question stu a-id question q-self-eval)
-    (define num-formlet
-      (formlet
-       (div
-        (p ,(format "The student thought they earned ~a"
-                    (answer:numeric-value q-self-eval)))
-        ,{numeric-formlet . => . peer-score})
-       (values peer-score)))
-    (define bool-formlet
-      (formlet
-       (div
-        (p ,(format "The student thought they did~a fulfill the requirement."
-                    (if (answer:bool-value q-self-eval)
-                      ""
-                      "'nt")))
-        (p "Did they fulfill the requirement?")
-        ,{boolean-formlet . => . peer-score})
-       (values peer-score)))
-    #;(define question-formlet
-    (formlet
-    (div
-    ,(match (question-type question)
-    ['numeric
-    `(div
-    (p ,(format "The student thought they earned ~a" (answer:numeric-value q-self-eval)))
-    ,{numeric-formlet . => . peer-score})]
-    ['bool
-    `(div
-    (p ,(format "The student thought they did~a fulfill the requirement."
-    (if (answer:bool-value q-self-eval)
-    ""
-    "'nt")))
-    (p "Did they fulfill the requirement?")
-    ,{boolean-formlet . => . peer-score})]))
-    (values peer-score)))
-    (define-values (score)
+  (define (grade-question stu a-id question q-self-eval)    
+    (define the-formlet
+      (match (question-type question)
+        ['numeric 
+         (formlet
+          (div
+           (p ,(format "The student thought they earned ~a."
+                       (answer:numeric-value q-self-eval)))
+           (p "What did they earn?")
+           ,{numeric-formlet . => . peer-score}
+           ,{evidence-formlet . => . comment})
+          (values peer-score comment))]
+        ['bool 
+         (formlet
+          (div
+           (p ,(format "The student thought they did~a fulfill the requirement."
+                       (if (answer:bool-value q-self-eval)
+                         ""
+                         "'nt")))
+           (p "Did they fulfill the requirement?")
+           ,{boolean-formlet . => . peer-score}
+           ,{evidence-formlet . => . comment})
+          (values peer-score comment))]))
+    (define-values (score comment)
       (formlet-process
-       (match (question-type question)
-         ['numeric num-formlet]
-         ['bool bool-formlet])
+       the-formlet
        (send/suspend
         (λ (k-url)
           (template
@@ -622,16 +613,14 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                (td
                 (p ,(question-prompt question))
                 (form ([action ,k-url] [method "post"])
-                      ,@(formlet-display (match (question-type question)
-                                           ['numeric num-formlet]
-                                           ['bool bool-formlet]))
+                      ,@(formlet-display the-formlet)
                       (input ([type "submit"] [value "Submit"]))))))))))))
     ((match (question-type question)
        ['bool
         answer:bool]
        ['numeric
         answer:numeric])
-     (current-seconds) empty
+     (current-seconds) comment
      score))
 
   (define (path->last-part f)
