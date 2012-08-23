@@ -211,11 +211,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (cond
       [(or (is-admin?)
            (string=? (current-user) student))
-       (send/suspend/dispatch
-        (λ (embed/url)
-          (template
-           #:breadcrumb (list (cons student #f))
-           `(h1 "Student Page for " ,student))))]
+       (send/back
+        (template
+         #:breadcrumb (list (cons student #f))
+         `(h1 "Student Page for " ,student)))]
       [else
        (redirect-to (main-url show-root))]))
 
@@ -313,7 +312,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
            id i)
     (define p (assignment-question-student-grade-path id i))
     (and (file-exists? p) (file->value p)))
-  
+
   (define assignment-question-student-grade
     (make-assignment-question-student-grade
      assignment-question-student-grade-path))
@@ -344,7 +343,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (define v (assignment-question-student-grade/peer id i))
     (if v
       (answer:numeric-value v)
-      #f))  
+      #f))
 
   (define (assignment-question-prof-bool-grade id i)
     (define v (assignment-question-prof-grade id i))
@@ -554,7 +553,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                               "Yes"
                               "No")]
                            [(answer:numeric _ _ value)
-                            (real->decimal-string value 4)])))         
+                            (real->decimal-string value 4)])))
              ;; XXX add line links
              (pre ,(answer-comments ans)))]
       [else
@@ -578,7 +577,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                              ;; XXX incorporate optional-enable
                              ,(real->decimal-string (+ nw ow) 4))
                        ,prompt)
-                    ,(format-answer 
+                    ,(format-answer
                       "Self"
                       (assignment-question-student-grade a-id i))
                     ,(format-answer
@@ -613,7 +612,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                            ;; XXX incorporate optional-enable
                            ,(real->decimal-string (+ nw ow) 4))
                      ,prompt)
-                  ,(format-answer 
+                  ,(format-answer
                     "Peer's Self"
                     (parameterize ([current-user peer])
                       (assignment-question-student-grade a-id i)))
@@ -698,21 +697,21 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         #:breadcrumb (list (cons "Peer Eval" #f))
         "Peer evaluation completed."))))
 
-  (define (grade-question stu a-id question q-self-eval)    
+  (define (grade-question stu a-id question q-self-eval)
     (define score-formlet
       (match (question-type question)
-        ['numeric 
+        ['numeric
          numeric-formlet]
-        ['bool 
+        ['bool
          boolean-formlet]))
     (define the-formlet
-        (formlet
-          (div
-           ,(format-answer "Their" q-self-eval)
-           (p "What do you think they earned?")
-           ,{score-formlet . => . peer-score}
-           ,{evidence-formlet . => . comment})
-          (values peer-score comment)))
+      (formlet
+       (div
+        ,(format-answer "Their" q-self-eval)
+        (p "What do you think they earned?")
+        ,{score-formlet . => . peer-score}
+        ,{evidence-formlet . => . comment})
+       (values peer-score comment)))
     (define-values (score comment)
       (formlet-process
        the-formlet
@@ -768,7 +767,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                  (pre
                                   ,@(map line->line-content-div file-lines
                                          (build-list (length file-lines)
-                                                     add1)))))))))))  
+                                                     add1)))))))))))
 
   (define (logout req)
     (redirect-to
@@ -814,13 +813,11 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
               (if (= 1 (quotient s (car unit)))
                 ""
                 "s")))
-    ;; TODO
-    (define (self-eval-completed? a-id user) #f)
     ;; TODO render offline assignments (like the final) differently
     (define (render-assignment a)
       (define next-due
         (cond
-          [(self-eval-completed? (assignment-id a) (current-user))
+          [(self-eval-completed? a)
            (assignment-peer-secs a)]
           [(> (current-seconds) (assignment-due-secs a))
            (assignment-eval-secs a)]
@@ -863,20 +860,19 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                         (main-url evaluate-peer (assignment-id a))
                         "Grade a Peer Details"
                         (main-url show-peer (assignment-id a)))))))
-    (send/suspend/dispatch
-     (λ (embed/url)
-       (template
-        #:breadcrumb (list (cons "Student Main Page" #f))
-        ;; TODO
-        `(div ([id "class-score"])
-              (table (tr (th "Mininum Final Grade")
-                         (th "Maximum Final Grade"))
-                     (tr (td ,(format-grade 0))
-                         (td ,(format-grade 1)))))
-        `(div ([id "upcoming-assignments"])
-              ,@(map render-assignment upcoming))
-        `(div ([id "past-assignments"])
-              ,@(map render-assignment past))))))
+    (send/back
+     (template
+      #:breadcrumb (list (cons "Student Main Page" #f))
+      ;; TODO
+      `(div ([id "class-score"])
+            (table (tr (th "Mininum Final Grade")
+                       (th "Maximum Final Grade"))
+                   (tr (td ,(format-grade 0))
+                       (td ,(format-grade 1)))))
+      `(div ([id "upcoming-assignments"])
+            ,@(map render-assignment upcoming))
+      `(div ([id "past-assignments"])
+            ,@(map render-assignment past)))))
 
   (define (delete-a-file req a-id file-to-delete)
     (define assignment
@@ -977,39 +973,41 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                (md5 (string-downcase (string-trim-both user-email)))))))
 
   (define (render-admin)
-    (send/suspend/dispatch
-     (λ (embed/url)
-       (template 
-        #:breadcrumb (list (cons "Admin" #f))
-        ;; XXX grade next thing link
-        `(table 
-          (thead
-           (tr (th "User")
-               (th "Min")
-               (th "Max")
-               (th "Ungraded")))
-          (tbody
-           ,@(for/list ([u (in-list (users))])
-               (parameterize ([current-user u])
+    (send/back
+     (template
+      #:breadcrumb (list (cons "Admin" #f))
+      ;; XXX grade next thing link
+      `(table
+        (thead
+         (tr (th "User")
+             (th "Min")
+             (th "Max")
+             (th "Ungraded")))
+        (tbody
+         ,@(for/list ([u (in-list (users))])
+             (parameterize ([current-user u])
                `(tr (td ,u)
                     (td ,(format-grade 0))
                     (td ,(format-grade 1))
-                    (td 
-                     ,@(for/list 
+                    (td
+                     ,@(for/list
                            ([a (in-list assignments)]
-                            #:when (past-due? (assignment-eval-secs a))
+                            #:when (self-eval-completed? a)
                             #:unless (prof-eval-completed? a))
-                         (format "~a " (assignment-id a)))))))))))))
+                         (format "~a " (assignment-id a))))))))))))
 
-  (define (past-due? secs)
-    (< secs (current-seconds)))
-  (define (prof-eval-completed? a)
+  (define ((make-prof-eval-completed? assignment-question-prof-grade-path)
+           a)
     (define id (assignment-id a))
     (define qs (assignment-questions a))
     (for/and ([q (in-list qs)]
               [i (in-naturals)])
       (file-exists?
        (assignment-question-prof-grade-path id i))))
+  (define self-eval-completed?
+    (make-prof-eval-completed? assignment-question-student-grade-path))
+  (define prof-eval-completed?
+    (make-prof-eval-completed? assignment-question-prof-grade-path))
 
   (define current-user (make-parameter #f))
   (define current-user-type (make-parameter #f))
