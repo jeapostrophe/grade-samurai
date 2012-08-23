@@ -478,10 +478,11 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (format-grade default-grade)
     (define g (compute-grade default-grade))
-    `(span ([class ,(substring (letter-grade g) 0 1)])
+    (define l (letter-grade g))
+    `(span ([class ,(substring l 0 1)])
            ,(format "~a% (~a)"
                     (real->decimal-string (* 100 g) 4)
-                    (letter-grade g))))
+                    l)))
 
   (define boolean-formlet
     (formlet
