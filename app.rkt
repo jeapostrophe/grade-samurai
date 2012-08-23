@@ -820,7 +820,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (define (render-assignment a)
       (define next-due
         (cond
-          ;; XXX if peer is completed, give back a #f
+          [(peer-eval-completed? a)
+           #f]
           [(self-eval-completed? a)
            (assignment-peer-secs a)]
           [(> (current-seconds) (assignment-due-secs a))
@@ -1098,6 +1099,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
               [i (in-naturals)])
       (file-exists?
        (assignment-question-prof-grade-path id i))))
+  (define peer-eval-completed?
+    (make-prof-eval-completed? assignment-question-student-grade-path/peer))
   (define self-eval-completed?
     (make-prof-eval-completed? assignment-question-student-grade-path))
   (define prof-eval-completed?
