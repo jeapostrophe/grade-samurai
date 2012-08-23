@@ -904,6 +904,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             (- (assignment-due-secs assignment) (current-seconds)))
           (template
            #:breadcrumb (list (cons (format "Manage Files - ~a" a-id) #f))
+           ;; XXX use standard time duration display
            `(p ,(format "File Management for ~a ~a" a-id
                         (if (seconds-left . < . 0)
                           "is closed"
@@ -1032,6 +1033,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             the-formlet
             (send/suspend
              (λ (k-url)
+               ;; XXX displays the current user wrong because of the
+               ;; parameterize above
                (template
                 #:breadcrumb (list (cons "Admin > Grade" #f))
                 `(div
