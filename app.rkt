@@ -75,6 +75,31 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (make-parent-directory* pth)
   (write-to-file v pth #:exists 'replace))
 
+(define (letter-grade ng)
+    (cond
+      [(> ng 0.93) "A"]
+      [(> ng 0.90) "A-"]
+      [(> ng 0.86) "B+"]
+      [(> ng 0.83) "B"]
+      [(> ng 0.80) "B-"]
+      [(> ng 0.76) "C+"]
+      [(> ng 0.73) "C"]
+      [(> ng 0.70) "C-"]
+      [(> ng 0.66) "D+"]
+      [(> ng 0.63) "D"]
+      [(> ng 0.60) "D-"]
+      [else "F"]))
+
+(define (path->last-part f)
+    (define-values (base name must-be-dir?)
+      (split-path f))
+    (path->string name))
+
+  (define (directory-list* pth)
+    (if (directory-exists? pth)
+      (map path->last-part (directory-list pth))
+      empty))
+
 (define-runtime-path source-dir ".")
 
 (define (samurai-go!
@@ -107,9 +132,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (eq? 'admin (current-user-type)))
 
   (define (page/root req)
-    (if (is-admin?)
-      (redirect-to (main-url page/admin))
-      (redirect-to (main-url page/main))))
+    (send/back
+     (if (is-admin?)
+       (redirect-to (main-url page/admin))
+       (redirect-to (main-url page/main)))))
 
   (define (page/login req [last-error #f])
     (define login-formlet
@@ -202,10 +228,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
     (write-to-file* (student nick-name first-name last-name email)
                     (user-info-path))
-    (if (binding:file? photo)
+    (when (binding:file? photo)
       (display-to-file* (binding:file-content photo)
-                        (user-image-path))
-      (void))
+                        (user-image-path)))
 
     (redirect-to (main-url page/root)))
 
@@ -258,22 +283,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (page/assignment/files req a-id)
     (template
      #:breadcrumb (list (cons "View Files" #f))
-     (assignment-file-display a-id)))
-
-  (define (letter-grade ng)
-    (cond
-      [(> ng 0.93) "A"]
-      [(> ng 0.90) "A-"]
-      [(> ng 0.86) "B+"]
-      [(> ng 0.83) "B"]
-      [(> ng 0.80) "B-"]
-      [(> ng 0.76) "C+"]
-      [(> ng 0.73) "C"]
-      [(> ng 0.70) "C-"]
-      [(> ng 0.66) "D+"]
-      [(> ng 0.63) "D"]
-      [(> ng 0.60) "D-"]
-      [else "F"]))
+     (assignment-file-display a-id)))  
 
   (define default-peer
     "The Spanish Inquisition")
@@ -287,17 +297,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                        (parameterize ([current-user u])
                          (assignment-peer id)))
                u))
-        default-peer))
-
-  (define (path->last-part f)
-    (define-values (base name must-be-dir?)
-      (split-path f))
-    (path->string name))
-
-  (define (directory-list* pth)
-    (if (directory-exists? pth)
-      (map path->last-part (directory-list pth))
-      empty))
+        default-peer))  
 
   (define (users-path)
     (build-path db-path "users"))
