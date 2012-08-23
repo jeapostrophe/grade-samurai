@@ -820,6 +820,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (define (render-assignment a)
       (define next-due
         (cond
+          ;; XXX if peer is completed, give back a #f
           [(self-eval-completed? a)
            (assignment-peer-secs a)]
           [(> (current-seconds) (assignment-due-secs a))
@@ -841,10 +842,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                               (assignment-optional-weight a)))
                         4)
                       "%")
-                  (td ,(format
-                        "Due ~a in ~a"
-                        (date->string (seconds->date next-due))
-                        (secs->time-text (- next-due (current-seconds))))))
+                  (td ,(if next-due
+                         (format
+                          "Due ~a in ~a"
+                          (date->string (seconds->date next-due))
+                          (secs->time-text (- next-due (current-seconds))))
+                         "Completed")))
               (tr (td ,(cond-hyperlink
                         (current-seconds) (assignment-due-secs a)
                         "Turn in Files"
