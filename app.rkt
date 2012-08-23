@@ -941,7 +941,6 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           (template
            #:breadcrumb (list (cons "Home" (main-url page/main)) 
                                     (cons (format "Manage Files - ~a" a-id) #f))
-           ;; XXX use standard time duration display
            `(p ,(format "File Management for ~a ~a" a-id
                         (if (seconds-left . < . 0)
                           "is closed"
@@ -949,11 +948,11 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
            `(table
              (tr (th "Filename") (th "Delete?"))
              ,@(map
-                (λ (file-path)
-                  `(tr (td ,(path->string file-path))
+                (λ (filename)
+                  `(tr (td ,filename)
                        (td (a ([href ,(main-url 
                                        page/assignment/files/delete a-id
-                                       (path->string file-path))])
+                                       filename)])
                               "X"))))
                 (assignment-files a-id)))
            ;; XXX Add a textarea box
@@ -969,8 +968,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (when (contains-greater-than-80-char-line? file-content)
       (error 'upload-file
              "Cannot upload files with lines greater than 80 characters"))
+    (make-directory* (assignment-file-path a-id))
     (when (< (current-seconds) (assignment-due-secs assignment))
-      (display-to-file
+      (display-to-file #:exists 'replace
        file-content
        (build-path (assignment-file-path a-id)
                    (bytes->string/utf-8
