@@ -5,3 +5,23 @@ table.optional {
 table.optenable {
     background: green;
 }
+
+span.A {
+    color: #00FF15;
+}
+
+span.B {
+    color: #80FF00;
+}
+
+span.C {
+   color: #EEFF00;
+}
+
+span.D {
+    color: #FF8000;
+}
+
+span.F {
+    color: #FF1E00;
+}

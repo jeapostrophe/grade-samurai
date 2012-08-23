@@ -138,15 +138,21 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (define authenticated?
       (authenticate-users username password))
 
-    (if authenticated?
-      (redirect-to (main-url show-root)
+    (cond
+      [authenticated?
+       (redirect-to (parameterize ([current-user username]
+                                   [current-user-type authenticated?])
+                      (if (or (file-exists? (user-info-path))
+                              (is-admin?))
+                        (main-url show-root)
+                        (main-url manage-account)))
                    #:headers
                    (list (cookie->header
                           (make-id-cookie secret-salt
                                           (format "~a:~a"
                                                   authenticated?
-                                                  username)))))
-      (login req (format "Invalid password for user (~S)" username))))
+                                                  username)))))]
+      [else (login req (format "Invalid password for user (~S)" username))]))
 
   (define (default-text-input default-string)
     (to-string (default (string->bytes/utf-8 default-string)
@@ -457,10 +463,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (format-grade default-grade)
     (define g (compute-grade default-grade))
-    ;; XXX use a span and add some css for good and bad colors
-    (format "~a% (~a)"
-            (real->decimal-string (* 100 g) 4)
-            (letter-grade g)))
+    `(span ([class ,(substring (letter-grade g) 0 1)])
+           ,(format "~a% (~a)"
+                    (real->decimal-string (* 100 g) 4)
+                    (letter-grade g))))
 
   (define boolean-formlet
     (formlet
@@ -962,21 +968,22 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                   ,(footer))))))
 
   (define (view-student-photo req student)
-    (define user-img-path (user-image-path))
-    (define user-info-path (user-info-path))
-    (define user-email
-      (if (file-exists? user-info-path)
-        (student-email (file->value user-info-path))
-        ""))
-    (if (file-exists? user-img-path)
-      (response/full
-       200 #"Okay"
-       (current-seconds) #"image/jpg"
-       empty
-       (list (file->bytes user-img-path)))
-      (redirect-to
-       (format "http://www.gravatar.com/avatar/~a?s=160&d=mm"
-               (md5 (string-downcase (string-trim-both user-email)))))))
+    (parameterize ([current-user student])
+      (define user-img-path (user-image-path))
+      (define user-inf-path (user-info-path))
+      (define user-email
+        (if (file-exists? user-inf-path)
+            (student-email (file->value user-inf-path))
+            ""))
+      (if (file-exists? user-img-path)
+          (response/full
+           200 #"Okay"
+           (current-seconds) #"image/jpg"
+           empty
+           (list (file->bytes user-img-path)))
+          (redirect-to
+           (format "http://www.gravatar.com/avatar/~a?s=160&d=mm"
+                   (md5 (string-downcase (string-trim-both user-email))))))))
 
   (define (page/admin/grade-next req)
     (unless (is-admin?)
@@ -999,6 +1006,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        (parameterize ([current-user u])
          (define id (assignment-id a))
          (define qs (assignment-questions a))
+         (define student-info (file->value (user-info-path)))
          (match-define
           (cons q i)
           (for/or ([q (in-list qs)]
@@ -1034,7 +1042,11 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                (template
                 #:breadcrumb (list (cons "Admin > Grade" #f))
                 `(div
-                  ;; XXX display who they are
+                  (img ([src ,(main-url view-student-photo (current-user))]
+                           [width "80"] [height "80"]))
+                  (p ,(format "~a ~a" 
+                              (student-nickname student-info)
+                              (student-lastname student-info)))
                   (table
                    (tr
                     (td

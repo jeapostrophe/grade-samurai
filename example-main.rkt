@@ -47,11 +47,11 @@
               ["admin"
                (and (string=? p "password")
                     'admin)]
-                    ["test"
-                     (and (string=? p "test")
-                          'user)]
+              ["test"
+               (and (string=? p "test")
+                    'user)]
               [_ 
                (and (authenticate-byu u p)
-                          'user)]))
+                    'user)]))
           #:username-request-text "NetId: "
           #:password-request-text "RouteY Password: "))
