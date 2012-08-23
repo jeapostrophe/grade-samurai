@@ -3,17 +3,12 @@
          racket/contract
          racket/serialize)
 
-(struct assignment (normal-weight optional-weight id due-secs eval-secs peer-secs questions) #:prefab)
-(struct question (normal-weight optional-weight prompt type) #:prefab)
-
-(struct question-self-eval
-        (score lines explanation) #:prefab);TODO merge file and line-number
-
-(struct peer-grading-struct
-        (peer-id question-grades) #:prefab)
-
-(struct student (nickname firstname lastname email) #:prefab)
-
+(struct assignment (normal-weight optional-weight id due-secs eval-secs peer-secs questions) 
+        #:prefab)
+(struct question (normal-weight optional-weight prompt type)
+        #:prefab)
+(struct student (nickname firstname lastname email)
+        #:prefab)
 (struct answer (timestamp comments)
         #:prefab)
 (struct answer:bool answer (value)
@@ -35,13 +30,9 @@
           [optional-weight number?]
           [prompt string?]
           [type (or/c 'bool 'numeric)])]
- [struct question-self-eval
-         ([score number?]
-          [lines (listof number?)]
-          [explanation string?])]
- [struct peer-grading-struct
-         ([peer-id string?]
-          [question-grades (listof question-self-eval?)])]
+ [struct answer
+         ([timestamp exact-nonnegative-integer?]
+          [comments string?])]
  [struct answer:bool
          ([timestamp exact-nonnegative-integer?]
           [comments string?]

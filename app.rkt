@@ -24,15 +24,18 @@
 
 (define DEBUG? #t)
 
-;; XXX TODO Ask questions simultaneously and/or have better keyboarding
 ;; XXX TODO Showing self-eval answers
 ;; XXX TODO Showing peer-eval answers
 ;; XXX TODO Doing admin eval
-;; XXX TODO Allowing comments on self-eval answers after admin
-;; XXX TODO Enforcing optional-enable
-;; XXX TODO Dealing with your-split (wlang1/wlang2)
+
 ;; XXX TODO Style
 ;; XXX TODO Fix bread crumbs in template calls
+
+;; XXX TODO Ask questions simultaneously and/or have better keyboarding
+;; XXX TODO Allowing comments on self-eval answers after admin
+
+;; XXX TODO Enforcing optional-enable
+;; XXX TODO Dealing with your-split (wlang1/wlang2)
 
 (define (string->lines s)
   (string-split s "\n"))
@@ -583,6 +586,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           (div
            (p ,(format "The student thought they earned ~a."
                        (answer:numeric-value q-self-eval)))
+           ;; XXX add line links & combine with below (maybe have it quoted in the comment box?)
+           (p "Their comments:" (pre ,(answer-comments q-self-eval)))
            (p "What did they earn?")
            ,{numeric-formlet . => . peer-score}
            ,{evidence-formlet . => . comment})
@@ -594,6 +599,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                        (if (answer:bool-value q-self-eval)
                          ""
                          "'nt")))
+           ;; XXX add line links
+           (p "Their comments:" (pre ,(answer-comments q-self-eval)))
            (p "Did they fulfill the requirement?")
            ,{boolean-formlet . => . peer-score}
            ,{evidence-formlet . => . comment})
