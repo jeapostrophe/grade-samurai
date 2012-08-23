@@ -24,7 +24,9 @@
 
 (define DEBUG? #t)
 
-;; XXX TODO Doing admin eval
+;; XXX TODO There are bunch of "simple" display XXXs in the code, such
+;; as display the student's username and photo in the admin
+;; grading. T-bone, please deal with those.
 
 ;; XXX TODO Style
 ;; XXX TODO Fix bread crumbs in template calls
@@ -221,6 +223,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define-values (main-dispatch main-url main-applies?)
     (dispatch-rules+applies
      [("") show-root]
+     [("admin" "grade-next") page/admin/grade-next]
      [("login") login]
      [("logout") logout]
      [("account") manage-account]
@@ -972,11 +975,99 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        (format "http://www.gravatar.com/avatar/~a?s=160&d=mm"
                (md5 (string-downcase (string-trim-both user-email)))))))
 
+  (define (page/admin/grade-next req)
+    (unless (is-admin?)
+      (send/back
+       (template
+        #:breadcrumb (list (cons "Admin > Grade Next" #f))
+        "Only the admin can view this page.")))
+    ;; XXX Mimic this structure for students self & peer
+    (match
+        (for*/or ([a (in-list assignments)]
+                  [u (in-list (users))]
+                  #:when 
+                  (parameterize ([current-user u])
+                    (self-eval-completed? a))
+                  #:unless
+                  (parameterize ([current-user u])
+                    (prof-eval-completed? a)))
+          (cons a u))
+      [(cons a u)
+       (parameterize ([current-user u])
+         (define id (assignment-id a))
+         (define qs (assignment-questions a))
+         (match-define
+          (cons q i)
+          (for/or ([q (in-list qs)]
+                   [i (in-naturals)]
+                   #:unless
+                   (file-exists?
+                    (assignment-question-prof-grade-path id i)))
+            (cons q i)))
+         
+         (define score-formlet
+           (match (question-type q)
+             ['numeric numeric-formlet]
+             ['bool boolean-formlet]))
+         (define the-formlet
+           (formlet
+            (div
+             ,(format-answer 
+               "Their"
+               (assignment-question-student-grade id i))
+             ,(format-answer
+               "Peer"
+               (assignment-question-peer-grade id i))
+             (p "What do you think they earned?")
+             ,{score-formlet . => . prof-score}
+             ,{evidence-formlet . => . comment})
+            (values prof-score comment)))
+
+         (define-values (score comment)
+           (formlet-process
+            the-formlet
+            (send/suspend
+             (λ (k-url)
+               (template
+                #:breadcrumb (list (cons "Admin > Grade" #f))
+                `(div
+                  ;; XXX display who they are
+                  (table
+                   (tr
+                    (td
+                     ,(assignment-file-display id))
+                    (td
+                     (p ,(question-prompt q))
+                     (form 
+                      ([action ,k-url] [method "post"])
+                      ,@(formlet-display the-formlet)
+                      (input ([type "submit"] [value "Submit"]))))))))))))
+         (define ans
+           ((match (question-type q)
+              ['bool
+               answer:bool]
+              ['numeric
+               answer:numeric])
+            (current-seconds) comment
+            score))
+
+         (write-to-file*
+          ans
+          (assignment-question-prof-grade-path id i))
+
+         (redirect-to
+          (main-url page/admin/grade-next)))]
+      [#f
+       (send/back
+        (template
+         #:breadcrumb (list (cons "Admin > Grade Next" #f))
+         "All grading is done! Great!"))]))
+
   (define (render-admin)
     (send/back
      (template
       #:breadcrumb (list (cons "Admin" #f))
-      ;; XXX grade next thing link
+      `(a ([href ,(main-url page/admin/grade-next)]) "Grade")
       `(table
         (thead
          (tr (th "User")
