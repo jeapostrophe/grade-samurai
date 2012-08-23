@@ -24,7 +24,6 @@
 
 (define DEBUG? #t)
 
-;; XXX TODO Showing peer-eval answers
 ;; XXX TODO Doing admin eval
 
 ;; XXX TODO Style
@@ -235,9 +234,6 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (template
      #:breadcrumb (list (cons "View Files" #f))
      (assignment-file-display a-id)))
-
-  (define (show-peer req a-id)
-    (error 'XXX))
 
   (define (letter-grade ng)
     (cond
@@ -583,6 +579,43 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                       "Peer"
                       (assignment-question-peer-grade a-id i))))))))))
 
+  ;; XXX abstract this and above
+  (define (show-peer req a-id)
+    (define assignment (id->assignment a-id))
+    (define peer (assignment-peer a-id))
+    (if (equal? default-peer peer)
+      (template
+       #:breadcrumb (list (cons "Peer Evaluation" #f))
+       `(div "Your peer has not been assigned."))
+      (template
+       #:breadcrumb (list (cons "Peer Evaluation" #f))
+       `(div
+         (table
+          (tr
+           (td
+            ,(parameterize ([current-user peer])
+               (assignment-file-display a-id)))
+           (td
+            ,@(for/list ([q (in-list (assignment-questions assignment))]
+                         [i (in-naturals)])
+                (match-define (question nw ow prompt type) q)
+                `(div
+                  (p (span ([class "weight"])
+                           ;; XXX incorporate optional-enable
+                           ,(real->decimal-string (+ nw ow) 4))
+                     ,prompt)
+                  ,(format-answer 
+                    "Peer's Self"
+                    (parameterize ([current-user peer])
+                      (assignment-question-student-grade a-id i)))
+                  ,(format-answer
+                    "Peer's Professor"
+                    (parameterize ([current-user peer])
+                      (assignment-question-prof-grade a-id i)))
+                  ,(format-answer
+                    "Peer"
+                    (assignment-question-student-grade/peer a-id i)))))))))))
+
   (define (evaluate-peer req a-id)
     (define assignment (id->assignment a-id))
     (define (pick-a-person)
@@ -682,7 +715,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
              (table
               (tr
                (td
-                ,(assignment-file-display a-id))
+                ,(parameterize ([current-user stu])
+                   (assignment-file-display a-id)))
                (td
                 (p ,(question-prompt question))
                 (form ([action ,k-url] [method "post"])
