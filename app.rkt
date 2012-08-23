@@ -170,8 +170,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                    [current-user-type authenticated?])
                       (if (or (file-exists? (user-info-path))
                               (is-admin?))
-                        (main-url show-root)
-                        (main-url manage-account)))
+                        (main-url page/root)
+                        (main-url page/account)))
                    #:headers
                    (list (cookie->header
                           (make-id-cookie secret-salt
@@ -225,8 +225,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                       ,@(formlet-display account-formlet)
                       (p "Instead of this: "
                          (img
-                          ([src ,(main-url page/student/photo
-                                           (current-user))]
+                          ([src ,(main-url page/student/photo (current-user))]
                            [width "160"] [height "160"])))
                       (input ([type "submit"] [value "Update Info"]))))))))
 
@@ -993,7 +992,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                   ,@bodies
                   ,(footer))))))
 
-  (define (view-student-photo req student)
+  (define (page/student/photo req student)
     (parameterize ([current-user student])
       (define user-img-path (user-image-path))
       (define user-inf-path (user-info-path))
@@ -1015,7 +1014,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (unless (is-admin?)
       (send/back
        (template
-        #:breadcrumb (list (cons "Admin > Grade Next" #f))
+        #:breadcrumb (list (cons "Home" (main-url page/main)) (cons "Grade Next" #f))
         "Only the admin can view this page.")))
     ;; XXX Mimic this structure for students self & peer
     (match
@@ -1068,9 +1067,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                ;; XXX displays the current user wrong because of the
                ;; parameterize above
                (template
-                #:breadcrumb (list (cons "Admin > Grade" #f))
+                #:breadcrumb (list (cons "Admin" (main-url page/admin)) (cons "Grade" #f))
                 `(div
-                  (img ([src ,(main-url view-student-photo (current-user))]
+                  (img ([src ,(main-url page/student/photo (current-user))]
                            [width "80"] [height "80"]))
                   (p ,(format "~a ~a" 
                               (student-nickname student-info)
