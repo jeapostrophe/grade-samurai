@@ -512,39 +512,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             (cons "Assignments" #f)
             (cons a-id #f)
             (cons "Self Evaluation" #f)
-            (cons "Edit" #f)))
-    (define (ask-question q)
-      (define question-formlet
-        (formlet
-         (div
-          ,{(match (question-type q)
-              ['bool boolean-formlet]
-              ['numeric numeric-formlet])
-            . => . score}
-          ,{evidence-formlet . => . comment})
-         (values score comment)))
-      (define-values (score explanation)
-        (formlet-process
-         question-formlet
-         (send/suspend
-          (λ (k-url)
-            (template
-             #:breadcrumb
-             the-breadcrumb
-             (side-by-side-render 
-              a-id
-              (list
-               `(p ,(question-prompt q))
-               `(form ([action ,k-url] [method "post"])
-                      ,@(formlet-display question-formlet)
-                      (input ([type "submit"] [value "Submit"]))))))))))
-      ((match (question-type q)
-         ['bool
-          answer:bool]
-         ['numeric
-          answer:numeric])
-       (current-seconds) explanation
-       score))
+            (cons "Edit" #f)))    
 
     (define (overdue-or thunk)
       (if (<= (assignment-eval-secs assignment) (current-seconds))
@@ -560,7 +528,11 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
              [i (in-naturals)])
          (unless
              (file-exists? (assignment-question-student-grade-path a-id i))
-           (define answer (ask-question question))
+           (define answer
+             (grade-question 
+              (current-user) a-id question i
+              #:breadcrumb the-breadcrumb
+              #:their? #f))
            (overdue-or
             (λ ()
               (write-to-file*
@@ -756,6 +728,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (grade-question stu a-id question i
                           #:breadcrumb bc
+                          #:their? [their? #t]
                           #:peer? [peer? #f]
                           #:extra [extra empty])
     (define score-formlet
@@ -767,9 +740,11 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (define the-formlet
       (formlet
        (div
-        ,(format-answer "Their" 
-                        (parameterize ([current-user stu])
-                          (assignment-question-student-grade a-id i)))
+        ,(if their?
+           (format-answer "Their" 
+                          (parameterize ([current-user stu])
+                            (assignment-question-student-grade a-id i)))
+           "")
         ,(if peer?
            (format-answer "Peer" 
                           (parameterize ([current-user stu])
