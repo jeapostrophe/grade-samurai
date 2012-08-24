@@ -174,7 +174,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                           (format "~a:~a"
                                                   authenticated?
                                                   username)))))]
-      [else (page/login req (format "Invalid password for user (~S)" username))]))
+      [else (page/login 
+             req
+             (format "Invalid password for user (~S)" username))]))
 
 
   (define (default-text-input default-string)
@@ -212,16 +214,17 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           #:breadcrumb (list (cons "Home" (main-url page/main))
                              (cons (current-user) #f)
                              (cons "Details" #f))
-          `(div ([id "account"])
-                (form ([action ,k-url]
-                       [method "post"]
-                       [enctype "multipart/form-data"])
-                      ,@(formlet-display account-formlet)
-                      (p "Instead of this: "
-                         (img
-                          ([src ,(main-url page/student/photo (current-user))]
-                           [height "160"])))
-                      (input ([type "submit"] [value "Update Info"]))))))))
+          `(div 
+            ([id "account"])
+            (form ([action ,k-url]
+                   [method "post"]
+                   [enctype "multipart/form-data"])
+                  ,@(formlet-display account-formlet)
+                  (p "Instead of this: "
+                     (img
+                      ([src ,(main-url page/student/photo (current-user))]
+                       [height "160"])))
+                  (input ([type "submit"] [value "Update Info"]))))))))
 
     (define-values (first-name last-name nick-name email photo)
       (formlet-process account-formlet account-form))
@@ -490,7 +493,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define evidence-formlet
     (formlet
      (div (p "Provide evidence to justify that score.")
-          ,{(to-string (required (textarea-input #:rows 8 #:cols 80))) . => . comment}
+          ,{(to-string (required (textarea-input #:rows 8 #:cols 80)))
+            . => . comment}
           (p "(If you need to refer to line numbers, prefix a number with L. For example, use L32 or l32 to refer to line 32)"))
      comment))
 
@@ -657,7 +661,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        `(div ([class "notice"]) "Your peer has not been assigned."))
       (template
        #:breadcrumb the-breadcrumb
-       (page/assignment/generalized/html a-id #:peer peer))))
+       (page/assignment/generalized/html a-id #:peer peer))))  
 
   (define (page/assignment/peer/edit req a-id)
     (define assignment (id->assignment a-id))
@@ -666,8 +670,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             (cons "Assignments" #f)
             (cons a-id #f)
             (cons "Peer Evaluation" #f)
-            (cons "Edit" #f)))
-    (define (pick-a-person)
+            (cons "Edit" #f)))    
+
+    (define (pick-a-person a-id)
       (define student-ids (users))
       (define finished-self-eval
         (remove (current-user)
@@ -696,13 +701,13 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                (template
                 #:breadcrumb the-breadcrumb
                 "Peer evaluation is impossible, as no peers are available."))])]))
-       (display-to-file* the-peer (assignment-peer-path a-id))        
+      (display-to-file* the-peer (assignment-peer-path a-id))        
       the-peer)
 
     (define peer-id
       (if (file-exists? (assignment-peer-path a-id))
         (assignment-peer a-id)
-        (pick-a-person)))
+        (pick-a-person a-id)))
 
     (define (overdue-or thunk)
       (if (<= (assignment-peer-secs assignment) (current-seconds))
@@ -1056,35 +1061,40 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                     (binding:file-filename new-file-binding)))))
     (redirect-to (main-url page/assignment/files a-id)))
 
+  (define jquery-url
+    "https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js")
+
   (define (template #:breadcrumb bc
                     . bodies)
     (response/xexpr
-     `(html (head (title ,@(add-between (map car bc) " > "))
-                  #;(script ([src "/sorttable.js"]) " ")
-                  (script ([src "https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"]) " ")
-                  (link ([rel "stylesheet"]
-                         [type "text/css"]
-                         [href "/style.css"])))
-            (body
-             (div ([class "breadcrumb"])
-                  ,@(for/list ([b (in-list bc)]
-                               [i (in-naturals)])
-                      (match-define (cons name url) b)
-                      (cond 
-                        [url
-                         `(span (a ([href ,url]) ,name) " / ")]
-                        [(= i (sub1 (length bc)))
-                        `(span ([class "this"]) ,name)]
-                        [else
-                         `(span ([class "not-this"]) ,name " / ")]))
-                  ,(if (current-user)
-                     `(span ([id "logout"])
-                            (a ([href ,(main-url page/account)]) ,(current-user)) " | "
-                            (a ([href ,(main-url page/logout)]) "logout"))
-                     ""))
-             (div ([class "content"])
-                  ,@bodies)
-             ,(footer)))))
+     `(html 
+       (head (title ,@(add-between (map car bc) " > "))
+             #;(script ([src "/sorttable.js"]) " ")
+             (script ([src jquery-url]) " ")
+             (link ([rel "stylesheet"]
+                    [type "text/css"]
+                    [href "/style.css"])))
+       (body
+        (div ([class "breadcrumb"])
+             ,@(for/list ([b (in-list bc)]
+                          [i (in-naturals)])
+                 (match-define (cons name url) b)
+                 (cond 
+                   [url
+                    `(span (a ([href ,url]) ,name) " / ")]
+                   [(= i (sub1 (length bc)))
+                    `(span ([class "this"]) ,name)]
+                   [else
+                    `(span ([class "not-this"]) ,name " / ")]))
+             ,(if (current-user)
+                `(span ([id "logout"])
+                       (a ([href ,(main-url page/account)])
+                          ,(current-user)) " | "
+                          (a ([href ,(main-url page/logout)]) "logout"))
+                ""))
+        (div ([class "content"])
+             ,@bodies)
+        ,(footer)))))
 
   (define (page/student/photo req student)
     (parameterize ([current-user student])
