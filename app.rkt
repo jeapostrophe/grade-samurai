@@ -24,9 +24,7 @@
 
 (define DEBUG? #t)
 
-;; XXX TODO Style
 ;; XXX Style - better colors for grades
-;; XXX Show file management on the same page as view files if before deadline
 ;; XXX style - make the question follow the scroll bar when looking at the code
 
 ;; XXX TODO Ask questions simultaneously and/or have better keyboarding
@@ -34,8 +32,6 @@
 
 ;; XXX TODO Enforcing optional-enable
 ;; XXX TODO Dealing with your-split (wlang1/wlang2)
-
-;; XXX style - all pages ensure that file display is a certain width even if no file content
 
 ;; XXX TODO textarea file submission
 ;; XXX TODO Adding a file without browsing first throws exception
