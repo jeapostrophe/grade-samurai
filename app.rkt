@@ -1064,11 +1064,16 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                          [href "/style.css"])))
             (body
              (div ([class "breadcrumb"])
-                  ,@(for/list ([b (in-list bc)])
+                  ,@(for/list ([b (in-list bc)]
+                               [i (in-naturals)])
                       (match-define (cons name url) b)
-                      (if url
-                        `(span (a ([href ,url]) ,name) " / ")
-                        `(span ([class "this"]) ,name)))
+                      (cond 
+                        [url
+                         `(span (a ([href ,url]) ,name) " / ")]
+                        [(= i (sub1 (length bc)))
+                        `(span ([class "this"]) ,name)]
+                        [else
+                         `(span ([class "not-this"]) ,name " / ")]))
                   ,(if (current-user)
                      `(span ([id "logout"])
                             ,(current-user) " | "
