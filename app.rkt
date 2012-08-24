@@ -24,8 +24,8 @@
 
 (define DEBUG? #t)
 
-;; XXX Style - better colors for grades
-;; XXX style - make the question follow the scroll bar when looking at the code
+;; XXX TODO Style - better colors for grades
+;; XXX TODO style - make the question follow the scroll bar when looking at the code
 
 ;; XXX TODO Ask questions simultaneously and/or have better keyboarding
 ;; XXX TODO Allowing comments on self-eval answers after admin
@@ -332,7 +332,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (parameterize ([current-user co-peer])      
       (assignment-question-student-grade/peer id i)))
 
-  ;; XXX cleanup this
+  ;; XXX CLEANUP this
   (define (assignment-question-student-bool-grade id i)
     (define v (assignment-question-student-grade id i))
     (if v
@@ -433,7 +433,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (match-define (assignment nw ow id ds es ps qs) a)
     (define self-pts
       (compute-question-grades
-       ;; XXX incorporate optional-enable
+       ;; XXX TODO incorporate optional-enable
        #t default-grade
        id qs))
     (define peer-pts
@@ -618,7 +618,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                  (match-define (question nw ow prompt type) q)
                  `(div ([class "answers"])
                        (p (span ([class "weight"])
-                                ;; XXX incorporate optional-enable
+                                ;; XXX TODO incorporate optional-enable
                                 ,(format-% (+ nw ow)))
                           ,prompt)
                        ,(format-answer
@@ -1127,7 +1127,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         #:breadcrumb (list (cons "Admin" (main-url page/main))
                            (cons "Grading" #f))
         "Only the admin can view this page.")))
-    ;; XXX Mimic this structure for students self & peer
+    ;; XXX CLEANUP Mimic this structure for students self & peer
     (match
         (for*/or ([a (in-list assignments)]
                   [u (in-list (users))]
