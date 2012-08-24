@@ -468,6 +468,17 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     
     `(div ([class "files"])
           ,@html))
+  
+  
+
+  (define (side-by-side-render a-id rhs)
+    `(div ([class "eval"])
+          (table
+           (tr
+            (td ([class "files-cell"])
+                ,(assignment-file-display a-id))
+            (td ([class "prompt-cell"])
+                ,@rhs)))))
 
   (define (format-grade default-grade)
     (define g (compute-grade default-grade))
@@ -524,16 +535,13 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             (template
              #:breadcrumb
              the-breadcrumb
-             `(div ([class "eval"])
-               (table
-                (tr
-                 (td ([class "files-cell"])
-                  ,(assignment-file-display a-id))
-                 (td ([class "prompt-cell"])
-                  (p ,(question-prompt q))
-                  (form ([action ,k-url] [method "post"])
-                        ,@(formlet-display question-formlet)
-                        (input ([type "submit"] [value "Submit"]))))))))))))
+             (side-by-side-render 
+              a-id
+              (list
+               `(p ,(question-prompt q))
+               `(form ([action ,k-url] [method "post"])
+                      ,@(formlet-display question-formlet)
+                      (input ([type "submit"] [value "Submit"]))))))))))
       ((match (question-type q)
          ['bool
           answer:bool]
@@ -614,27 +622,25 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (page/assignment/generalized/html a-id #:peer [peer #f])
     (define assignment (id->assignment a-id))
     (parameterize ([current-user (or peer (current-user))])
-      `(div ([class "eval"])
-        (div ([class "files-cell"])
-             ,(assignment-file-display a-id))
-        (div ([class "prompt-cell"])
-             ,@(for/list ([q (in-list (assignment-questions assignment))]
-                          [i (in-naturals)])
-                 (match-define (question nw ow prompt type) q)
-                 `(div ([class "answers"])
-                       (p (span ([class "weight"])
-                                ;; XXX TODO incorporate optional-enable
-                                ,(format-% (+ nw ow)))
-                          ,prompt)
-                       ,(format-answer
-                         (if peer "Peer's Self" "Self")
-                         (assignment-question-student-grade a-id i))
-                       ,(format-answer
-                         (if peer "Peer's Professor" "Professor")
-                         (assignment-question-prof-grade a-id i))
-                       ,(format-answer
-                         (if peer "Your" "Peer's")
-                         (assignment-question-peer-grade a-id i))))))))
+      (side-by-side-render 
+       a-id
+       (for/list ([q (in-list (assignment-questions assignment))]
+                  [i (in-naturals)])
+         (match-define (question nw ow prompt type) q)
+         `(div ([class "answers"])
+               (p (span ([class "weight"])
+                        ;; XXX TODO incorporate optional-enable
+                        ,(format-% (+ nw ow)))
+                  ,prompt)
+               ,(format-answer
+                 (if peer "Peer's Self" "Self")
+                 (assignment-question-student-grade a-id i))
+               ,(format-answer
+                 (if peer "Peer's Professor" "Professor")
+                 (assignment-question-prof-grade a-id i))
+               ,(format-answer
+                 (if peer "Your" "Peer's")
+                 (assignment-question-peer-grade a-id i)))))))
     
   
   (define (page/assignment/self req a-id)
@@ -988,52 +994,49 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                              (cons "Assignments" #f)
                              (cons a-id #f)
                              (cons "Files" #f))
-          `(div ([class "eval"])
-                (table
-                 (tr
-                  (td ([class "files-cell"])
-                      ,(assignment-file-display a-id))
-                  (td ([class "prompt-cell"])
-                      (p ([class "notice"])
-                         ,(format "File Management for ~a ~a" a-id
-                                  (if closed?
-                                    "is closed"
-                                    (format "closes in ~a" 
-                                            (secs->time-text seconds-left)))))
-                      ,(if (empty? files)
-                         `(p ([class "notice"]) "No files uploaded yet for this assignment")
-                         `(table ([class "upload-table"])
-                                 (tr (th "Filename") (th "Delete?"))
-                                 ,@(map
-                                    (λ (filename)
-                                      `(tr (td ,filename)
-                                           (td ,(if closed? 
-                                                  "X"
-                                                  `(a ([href ,(main-url 
-                                                               page/assignment/files/delete a-id
-                                                               filename)])
-                                                      "X")))))
-                                    files)))
-                      ,@(if closed?
-                          empty
-                          (list 
-                           `(form ([action ,k-url]
-                                   [method "post"]
-                                   [enctype "multipart/form-data"])
-                                  (input ([type "file"]
-                                          [name "new-file"]))
-                                  (input ([type "submit"]
-                                          [value "Upload File"])))
-                           `(br)
-                           `(form ([action ,k-url]
-                                   [method "post"])
-                                  (input ([type "text"]
-                                          [name "filename"]))
-                                  (textarea ([name "file-content"]
-                                             [rows "40"]
-                                             [cols "80"]))
-                                  (input ([type "submit"]
-                                          [value "Add File"])))))))))))))
+          (side-by-side-render
+           a-id
+           (list*            
+            `(p ([class "notice"])
+                ,(format "File Management for ~a ~a" a-id
+                         (if closed?
+                             "is closed"
+                             (format "closes in ~a" 
+                                     (secs->time-text seconds-left)))))
+            (if (empty? files)
+                `(p ([class "notice"]) "No files uploaded yet for this assignment")
+                `(table ([class "upload-table"])
+                        (tr (th "Filename") (th "Delete?"))
+                        ,@(map
+                           (λ (filename)
+                             `(tr (td ,filename)
+                                  (td ,(if closed? 
+                                           "X"
+                                           `(a ([href ,(main-url 
+                                                        page/assignment/files/delete a-id
+                                                        filename)])
+                                               "X")))))
+                           files)))
+            (if closed?
+                empty
+                (list 
+                 `(form ([action ,k-url]
+                         [method "post"]
+                         [enctype "multipart/form-data"])
+                        (input ([type "file"]
+                                [name "new-file"]))
+                        (input ([type "submit"]
+                                [value "Upload File"])))
+                 `(br)
+                 `(form ([action ,k-url]
+                         [method "post"])
+                        (input ([type "text"]
+                                [name "filename"]))
+                        (textarea ([name "file-content"]
+                                   [rows "40"]
+                                   [cols "80"]))
+                        (input ([type "submit"]
+                                [value "Add File"])))))))))))
     (define new-file-binding
       (cond
         [(bindings-assq #"new-file" 
@@ -1048,6 +1051,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           empty
           (binding:form-value 
             (bindings-assq #"file-content" bs)))]))
+
     (define file-content (binding:file-content new-file-binding))
     (when (contains-greater-than-80-char-line? file-content)
       (error 'upload-file
@@ -1192,23 +1196,21 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                  (cons "Grading" #f)
                                  (cons (student-display-name u) #f)
                                  (cons id #f))
-              `(div ([class "eval"])            
-                (table 
-                 (tr
-                  (td ([class "files-cell"])
-                   ,(parameterize ([current-user u])
-                      (assignment-file-display id))
-                   (td ([class "prompt-cell"])
-                       (div ([class "student-info"])
-                            (img ([src ,(main-url page/student/photo u)]
-                                  [height "80"])) 
-                            (br)
-                            ,(student-display-name u))
-                       (p ,(question-prompt q))
-                       (form 
-                        ([action ,k-url] [method "post"])
-                        ,@(formlet-display the-formlet)
-                        (input ([type "submit"] [value "Submit"])))))))))))))
+              
+              (parameterize ([current-user u])
+                (side-by-side-render
+                 id
+                 (list
+                  `(div ([class "student-info"])
+                        (img ([src ,(main-url page/student/photo u)]
+                              [height "80"])) 
+                        (br)
+                        ,(student-display-name u))
+                  `(p ,(question-prompt q))
+                  `(form 
+                    ([action ,k-url] [method "post"])
+                    ,@(formlet-display the-formlet)
+                    (input ([type "submit"] [value "Submit"])))))))))))
        (define ans
          ((match (question-type q)
             ['bool
