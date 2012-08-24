@@ -100,7 +100,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (directory-list* pth)
     (if (directory-exists? pth)
-      (map path->last-part (directory-list pth))
+      (sort (map path->last-part (directory-list pth))
+            string-ci<=?)
       empty))
 
 (define-runtime-path source-dir ".")
@@ -1223,8 +1224,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           "Powered by "
           (a ([href "http://racket-lang.org/"]) "Racket") ". "
           "Written by "
+          (a ([href "http://faculty.cs.byu.edu/~jay"]) "Jay McCarthy")
+          ","
           (a ([href "http://trevoroakes.com/"]) "Trevor Oakes") " and "
-          (a ([href "http://faculty.cs.byu.edu/~jay"]) "Jay McCarthy") ". "
+          "BYU PLT."
           (br)
           (span ([id "timestamp"]) 
                 ,(date->string (seconds->date (current-seconds)) #t))))
