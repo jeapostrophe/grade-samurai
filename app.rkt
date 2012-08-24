@@ -35,6 +35,8 @@
 ;; XXX TODO Enforcing optional-enable
 ;; XXX TODO Dealing with your-split (wlang1/wlang2)
 
+;; XXX style - all pages ensure that file display is a certain width even if no file content
+
 ;; XXX TODO textarea file submission
 ;; XXX TODO Adding a file without browsing first throws exception
 ;; XXX TODO File with lines > 80 characters throws exception, should be an actual error page
@@ -193,10 +195,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (page/account req)
     (define existing-info
-      (cond
-        [(file-exists? (user-info-path))
-         (file->value (user-info-path))]
-        [else (student "" "" "" "")]))
+      (student-info (current-user)))
 
     (define account-formlet
       (formlet
@@ -306,6 +305,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (build-path db-path "users"))
   (define (users)
     (directory-list* (users-path)))
+  (define (sorted-users)
+    (sort (users)
+          string-ci<=?          
+          #:key (compose student-lastname student-info)))
 
   (define (user-path)
     (build-path (users-path) (current-user)))
@@ -1099,11 +1102,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (page/student/photo req student)
     (parameterize ([current-user student])
       (define user-img-path (user-image-path))
-      (define user-inf-path (user-info-path))
       (define user-email
-        (if (file-exists? user-inf-path)
-            (student-email (file->value user-inf-path))
-            ""))
+        (student-email (student-info student)))
       (if (file-exists? user-img-path)
           (response/full
            200 #"Okay"
@@ -1113,6 +1113,17 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           (redirect-to
            (format "http://www.gravatar.com/avatar/~a?s=160&d=mm"
                    (md5 (string-downcase (string-trim-both user-email))))))))
+
+  (define (student-info u) 
+    (parameterize ([current-user u])
+      (define p (user-info-path))
+      (if (file-exists? p)
+        (file->value p)
+        (student "" "" "" ""))))
+  (define (student-display-name u)
+    (match-define (student nick first last _) (student-info u))
+    (format "~a \"~a\" ~a"
+            first nick last))
 
   (define (page/admin/grade-next req)
     (unless (is-admin?)
@@ -1135,9 +1146,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       [(cons a u)
        (define id (assignment-id a))
        (define qs (assignment-questions a))
-       (define student-info 
-         (parameterize ([current-user u])
-           (file->value (user-info-path))))
+       (define the-info (student-info u))
        (match-define
         (cons q i)
         (for/or ([q (in-list qs)]
@@ -1178,17 +1187,17 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                  (cons u #f)
                                  (cons id #f))
               `(div
-                (img ([src ,(main-url page/student/photo u)]
-                      [height "80"]))
-                (p ,(format "~a ~a" 
-                            (student-nickname student-info)
-                            (student-lastname student-info)))
-                (table
+                (div ([class "student-info"])
+                     (img ([src ,(main-url page/student/photo u)]
+                           [height "80"])) 
+                     (br)
+                     ,(student-display-name u))
+                (table ([class "eval"])
                  (tr
-                  (td
+                  (td ([class "files-cell"])
                    ,(parameterize ([current-user u])
                       (assignment-file-display id))
-                   (td
+                   (td ([class "prompt-cell"])
                     (p ,(question-prompt q))
                     (form 
                      ([action ,k-url] [method "post"])
@@ -1224,25 +1233,28 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (send/back
      (template
       #:breadcrumb (list (cons "Admin" #f))
-      `(a ([href ,(main-url page/admin/grade-next)]) "Grade")
-      `(table
+      `(div ([id "grade-button"])
+            (a ([href ,(main-url page/admin/grade-next)]) "Grade"))
+      `(table ([id "grades"])
         (thead
-         (tr (th "User")
+         (tr (th "Student")
              (th "Min")
              (th "Max")
              (th "Ungraded")))
         (tbody
-         ,@(for/list ([u (in-list (users))])
+         ,@(for/list ([u (in-list (sorted-users))])
              (parameterize ([current-user u])
-               `(tr (td ,u)
-                    (td ,(format-grade 0))
-                    (td ,(format-grade 1))
-                    (td
-                     ,@(for/list
-                           ([a (in-list assignments)]
-                            #:when (self-eval-completed? a)
-                            #:unless (prof-eval-completed? a))
-                         (format "~a " (assignment-id a))))))))))))
+               `(tr 
+                 ;; XXX display nicely
+                 (td ,(student-display-name u))
+                 (td ,(format-grade 0))
+                 (td ,(format-grade 1))
+                 (td
+                  ,@(for/list
+                        ([a (in-list assignments)]
+                         #:when (self-eval-completed? a)
+                         #:unless (prof-eval-completed? a))
+                      (format "~a " (assignment-id a))))))))))))
 
   (define ((make-prof-eval-completed? assignment-question-prof-grade-path)
            a)
