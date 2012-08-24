@@ -35,10 +35,10 @@
 ;; XXX TODO Enforcing optional-enable
 ;; XXX TODO Dealing with your-split (wlang1/wlang2)
 
+;; XXX TODO textarea file submission
 ;; XXX TODO Adding a file without browsing first throws exception
 ;; XXX TODO File with lines > 80 characters throws exception, should be an actual error page
 ;; XXX TODO Admin and Self eval detail pages don't show peer eval
-;; XXX TODO Nowhere to see my grade on an assignment
 ;; XXX TODO Peer eval wording is weird
 
 (define (format-% v)
@@ -446,24 +446,29 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define compute-peer-grades
     (make-compute-question-grades compute-peer-grade))
 
+  (define (compute-assignment-grade a default-grade)
+    (match-define (assignment nw ow id ds es ps qs) a)
+    (define self-pts
+      (compute-question-grades
+       ;; XXX incorporate optional-enable
+       #t default-grade
+       id qs))
+    (define peer-pts
+      (compute-peer-grades
+       #t default-grade
+       id qs))
+    (if (number? ps)
+      (* (+ ow nw)
+         (+ (* 9/10 self-pts)
+            (* 1/10 peer-pts)))
+      (* (+ ow nw) self-pts)))
+
+  (define (compute-assignment-grade/id a-id default-grade)
+    (compute-assignment-grade (id->assignment a-id) default-grade))
+
   (define (compute-grade default-grade)
-    (for/sum
-     ([a (in-list assignments)])
-     (match-define (assignment nw ow id ds es ps qs) a)
-     (define self-pts
-       (compute-question-grades
-        ;; XXX incorporate optional-enable
-        #t default-grade
-        id qs))
-     (define peer-pts
-       (compute-peer-grades
-        #t default-grade
-        id qs))
-     (if (number? ps)
-       (* (+ ow nw)
-          (+ (* 9/10 self-pts)
-             (* 1/10 peer-pts)))
-       (* (+ ow nw) self-pts))))
+    (for/sum ([a (in-list assignments)])
+             (compute-assignment-grade a default-grade)))
 
   (define (assignment-file-display a-id)
     (define-values (html end-line-number)
@@ -937,12 +942,20 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             (td ,(format-%
                   (+ (assignment-normal-weight a)
                      (assignment-optional-weight a))))
-            (td ,(if next-due
+            (td ,(cond
+                   [next-due
                    (format
                     "Due ~a in ~a"
                     (date->string (seconds->date next-due))
-                    (secs->time-text (- next-due (current-seconds))))
-                   "Completed")))
+                    (secs->time-text (- next-due (current-seconds))))]
+                   [(not (prof-eval-completed? a))
+                    "Completed, waiting on professor evaluation."]
+                   [else
+                   `(span "Completed: "
+                          ,(format-%
+                            (compute-assignment-grade/id 
+                             (assignment-id a)
+                             0)))])))
         (tr (td ,(cond-hyperlink
                   (current-seconds) (assignment-due-secs a)
                   "Turn in Files"
