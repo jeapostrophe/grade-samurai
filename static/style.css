@@ -109,7 +109,7 @@ div.eval table tr td.files-cell {
     width: 50%;
 }
 
-div.eval table tr td.prompt-cell div.answers {
+.prompt-cell div.answers {
     margin-bottom: 1em;
     border: 1px dashed;
     border-radius: 5px;
@@ -118,7 +118,7 @@ div.eval table tr td.prompt-cell div.answers {
     margin-right: auto;
     width: 95%;
 }
-div.eval table tr td.prompt-cell div.answers p span.weight {
+.prompt-cell div.answers p span.weight {
     margin-right: 0.5em;
     background: #eceeec;
 }
@@ -141,6 +141,9 @@ table.upload-table tr td {
     padding-left: 3em;
 }
 
+.highlight {
+    background-color: yellow;
+}
 
 #footer {
     text-align: right;

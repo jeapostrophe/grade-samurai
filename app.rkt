@@ -845,8 +845,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                         (build-list (length file-lines) 
                                     (curry + line-offset)))))
                (td ([width "100%"])
-                   (div ([class "highlight"])
-                        (pre
+                   (div (pre
                          ,@(map line->line-content-div file-lines
                                 (build-list (length file-lines)
                                             (curry + line-offset)))))))))))
