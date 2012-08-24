@@ -472,13 +472,11 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   
 
   (define (side-by-side-render a-id rhs)
-    `(div ([class "eval"])
-          (table
-           (tr
-            (td ([class "files-cell"])
+    `(div ([class "side-by-side"])
+          (div ([class "left"])
                 ,(assignment-file-display a-id))
-            (td ([class "prompt-cell"])
-                ,@rhs)))))
+          (div ([class "right"])
+                ,@rhs)))
 
   (define (format-grade default-grade)
     (define g (compute-grade default-grade))
