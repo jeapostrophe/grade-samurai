@@ -472,10 +472,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (side-by-side-render a-id rhs)
     `(div ([class "side-by-side"])
-          (div ([class "left"])
-                ,(assignment-file-display a-id))
-          (div ([class "right"])
-                ,@rhs)))
+          (div ([class "left"]) (div ([class "side-by-side-inner"])
+                ,(assignment-file-display a-id)))
+          (div ([class "right"]) (div ([class "side-by-side-inner"])
+                ,@rhs))))
 
   (define (format-grade default-grade)
     (define g (compute-grade default-grade))

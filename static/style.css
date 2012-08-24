@@ -92,11 +92,12 @@ span.F {
 }
 
 .content {
+  overflow-y: auto;
   margin-left: auto;
   margin-right: auto;
   width: 95%;
   height: 80%;
-  padding-bottom: 3em; /* footer height */
+  margin-bottom: 3em; /* footer height */
 }
 
 div.side-by-side {
@@ -112,15 +113,21 @@ div.side-by-side div.left {
     width: 50%;
     height: 100%;
     float: left;
-    overflow-y: scroll;
+    overflow-y: auto;
+}
+
+div.side-by-side-inner {
+    margin-left: 1em;
+    margin-right: 1em;
 }
 
 div.side-by-side div.right {
     width: 50%;
     height: 100%;
     float: left;
-    overflow-y: scroll;
+    overflow-y: auto;
 }
+
 
 div.answers {
     margin-bottom: 1em;
