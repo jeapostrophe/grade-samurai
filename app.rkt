@@ -38,8 +38,6 @@
 ;; XXX TODO textarea file submission
 ;; XXX TODO Adding a file without browsing first throws exception
 ;; XXX TODO File with lines > 80 characters throws exception, should be an actual error page
-;; XXX TODO Admin and Self eval detail pages don't show peer eval
-;; XXX TODO Peer eval wording is weird
 
 (define (format-% v)
   (format "~a%" (real->decimal-string (* 100 v) 2)))
@@ -296,7 +294,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       default-peer))
   (define (assignment-co-peer id)
     (or (for/or ([u (in-list (users))])
-          (and (equal? id
+          (and (equal? (current-user)
                        (parameterize ([current-user u])
                          (assignment-peer id)))
                u))
@@ -346,7 +344,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (assignment-question-peer-grade id i)
     (define co-peer (assignment-co-peer id))
+    (eprintf "~v\n" (list id (current-user) co-peer))
     (parameterize ([current-user co-peer])
+      (eprintf "~v\n" (list id (current-user) co-peer
+                            (assignment-question-student-grade-path/peer id i)))
       (assignment-question-student-grade/peer id i)))
 
   ;; XXX cleanup this
@@ -608,7 +609,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (cond
       [ans
        `(div ([class ,(format "answer ~a" which)])
-             (p ,(format "The ~a evaluation is: ~a"
+             (p ,(format "~a evaluation is: ~a"
                          which
                          (match ans
                            [(answer:bool _ _ completed?)
@@ -621,7 +622,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
              ,(string->linked-html (answer-comments ans)))]
       [else
        `(div ([class ,(format "answer incomplete ~a" which)])
-             (p ,(format "Your ~a evaluation is not completed." which)))]))
+             (p ,(format "~a evaluation is not completed." which)))]))
 
   (define (page/assignment/self req a-id)
     (define assignment (id->assignment a-id))
@@ -652,7 +653,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                       "Professor"
                       (assignment-question-prof-grade a-id i))
                     ,(format-answer
-                      "Peer"
+                      "Peer's"
                       (assignment-question-peer-grade a-id i))))))))))
 
   ;; XXX abstract this and above
@@ -694,7 +695,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                     (parameterize ([current-user peer])
                       (assignment-question-prof-grade a-id i)))
                   ,(format-answer
-                    "Peer"
+                    "Your"
                     (assignment-question-student-grade/peer a-id i)))))))))))
 
   (define (page/assignment/peer/edit req a-id)
@@ -708,33 +709,34 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (define (pick-a-person)
       (define student-ids (users))
       (define finished-self-eval
-        (map
-         car
-         (filter
-          (λ (u-f)(file-exists? (cdr u-f)))
-          (map
-           (λ (un)
-             (cons un
-                   (assignment-question-student-grade-path a-id 0)))
-           student-ids))))
-      (define already-assigned
-        (map
-         (λ (u-f) (file->value (car u-f)))
-         (filter (λ (u-f)(file-exists? (cdr u-f)))
-                 (map (λ (un) (cons un (assignment-peer-path a-id)))
-                      student-ids))))
-      (define candidates
         (remove (current-user)
-                (remove* already-assigned finished-self-eval)))
-      (match (shuffle candidates)
-        [(list* peer _)
-         (display-to-file* peer (assignment-peer-path a-id))
-         peer]
-        [(list)
-         (send/back
-          (template
-           #:breadcrumb the-breadcrumb
-           "Peer evaluation is impossible, as no peers are available."))]))
+                (filter (λ (student-id)
+                          (parameterize ([current-user student-id])
+                            (self-eval-completed? assignment)))
+                        student-ids)))
+      (define already-assigned
+        (map (λ (student-id)
+               (parameterize ([current-user student-id])
+                 (assignment-peer a-id)))
+             student-ids))
+      (define candidates
+        (remove* already-assigned
+                 finished-self-eval))
+      (define the-peer
+        (match (shuffle candidates)
+          [(list* peer _)
+           peer]
+          [(list)
+           (match (shuffle finished-self-eval)
+             [(list* peer _)
+              peer]
+             [(list)              
+              (send/back
+               (template
+                #:breadcrumb the-breadcrumb
+                "Peer evaluation is impossible, as no peers are available."))])]))
+       (display-to-file* the-peer (assignment-peer-path a-id))        
+      the-peer)
 
     (define peer-id
       (if (file-exists? (assignment-peer-path a-id))
@@ -753,14 +755,21 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
      (λ ()
        (for ([question (assignment-questions assignment)]
              [i (in-naturals)])
-         (unless
-             (or
-              (file-exists?
-               (assignment-question-student-grade-path/peer a-id i))
+         (eprintf "~a\n"
+                  (list (assignment-question-student-grade-path/peer a-id i)
+                        peer-id
+                        (parameterize ([current-user peer-id])
+                          (assignment-question-student-grade-path a-id i))))
+         (when
+             (and
+              ;; I have not yet graded
               (not
                (file-exists?
-                (parameterize ([current-user peer-id])
-                  (assignment-question-student-grade-path a-id i)))))
+                (assignment-question-student-grade-path/peer a-id i)))
+              ;; They have grade
+              (file-exists?
+               (parameterize ([current-user peer-id])
+                  (assignment-question-student-grade-path a-id i))))
            (define grade
              (grade-question
               peer-id a-id question
@@ -774,7 +783,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
        (template
         #:breadcrumb the-breadcrumb
-        "Peer evaluation completed."))))
+        "Peer evaluation completed, or not available (as peer has not finished their grading.)"))))
 
   (define (grade-question stu a-id question q-self-eval)
     (define score-formlet
