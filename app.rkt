@@ -971,8 +971,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (redirect-to (main-url page/assignment/files a-id)))
 
   (define (page/assignment/files req a-id)
-    (define assignment
-      (findf (λ (a) (string=? a-id (assignment-id a))) assignments))
+    (define assignment (id->assignment a-id))
     (define (extract-binding:file req)
       (bindings-assq #"new-file" (request-bindings/raw req)))
     (define new-file-binding
@@ -982,6 +981,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           (define seconds-left
             (- (assignment-due-secs assignment) (current-seconds)))
           (define files (assignment-files a-id))
+          (define closed? (< seconds-left 0))
           (template
            #:breadcrumb (list (cons "Home" (main-url page/main)) 
                               (cons "Assignments" #f)
@@ -996,7 +996,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                    (td ([class "prompt-cell"])
                        (p ([class "notice"])
                           ,(format "File Management for ~a ~a" a-id
-                                   (if (seconds-left . < . 0)
+                                   (if closed?
                                        "is closed"
                                        (format "closes in ~a" 
                                                (secs->time-text seconds-left)))))
@@ -1007,21 +1007,23 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                     ,@(map
                                        (λ (filename)
                                          `(tr (td ,filename)
-                                              (td (a ([href ,(main-url 
-                                                              page/assignment/files/delete a-id
-                                                              filename)])
-                                                     "X"))))
+                                              (td ,(if closed? 
+                                                       "X"
+                                                       `(a ([href ,(main-url 
+                                                                   page/assignment/files/delete a-id
+                                                                   filename)])
+                                                          "X")))))
                                        files)))
                        ;; XXX Add a textarea box
-                       (form ([action ,k-url]
-                              [method "post"]
-                              [enctype "multipart/form-data"])
-                             (input ([type "file"]
-                                     [name "new-file"]))
-                             (input ([type "submit"]
-                                     [value "Add File"])))      
-                       ))))
-           )))))
+                       ,(if closed?
+                            ""
+                            `(form ([action ,k-url]
+                                    [method "post"]
+                                    [enctype "multipart/form-data"])
+                                   (input ([type "file"]
+                                           [name "new-file"]))
+                                   (input ([type "submit"]
+                                           [value "Add File"])))))))))))))
     (define file-content (binding:file-content new-file-binding))
     (when (contains-greater-than-80-char-line? file-content)
       (error 'upload-file
