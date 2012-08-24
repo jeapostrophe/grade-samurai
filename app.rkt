@@ -996,15 +996,19 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         (λ (k-url)
           (define seconds-left
             (- (assignment-due-secs assignment) (current-seconds)))
+          (define files (assignment-files a-id))
           (template
            #:breadcrumb (list (cons "Home" (main-url page/main)) 
                               (cons (format "Manage Files - ~a" a-id) #f))
-           `(p ,(format "File Management for ~a ~a" a-id
+           `(p ([class "notice"])
+               ,(format "File Management for ~a ~a" a-id
                         (if (seconds-left . < . 0)
                           "is closed"
                           (format "closes in ~a" 
                                   (secs->time-text seconds-left)))))
-           `(table
+           (if (empty? files)
+            `(p ([class "notice"]) "No files uploaded yet for this assignment")
+            `(table ([class "upload-table"])
              (tr (th "Filename") (th "Delete?"))
              ,@(map
                 (λ (filename)
@@ -1013,7 +1017,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                        page/assignment/files/delete a-id
                                        filename)])
                               "X"))))
-                (assignment-files a-id)))
+                files)))
            ;; XXX Add a textarea box
            `(form ([action ,k-url]
                    [method "post"]
