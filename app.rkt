@@ -1008,7 +1008,6 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                                                filename)])
                                                       "X")))))
                                     files)))
-                      ;; XXX Add a textarea box
                       ,@(if closed?
                           empty
                           (list 
