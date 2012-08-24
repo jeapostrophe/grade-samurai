@@ -30,6 +30,8 @@
 
 ;; XXX TODO Style
 ;; XXX Style - better colors for grades
+;; XXX Show file management on the same page as view files if before deadline
+;; XXX style - make the question follow the scroll bar when looking at the code
 ;; XXX TODO Fix bread crumbs in template calls
 
 ;; XXX TODO Ask questions simultaneously and/or have better keyboarding
@@ -533,12 +535,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
              #:breadcrumb
              (list (cons "Home" (main-url page/main))
                    (cons "Self Evaluation" #f))
-             `(div
+             `(div ([class "eval"])
                (table
                 (tr
-                 (td
+                 (td ([class "files-cell"])
                   ,(assignment-file-display a-id))
-                 (td
+                 (td ([class "prompt-cell"])
                   (p ,(question-prompt q))
                   (form ([action ,k-url] [method "post"])
                         ,@(formlet-display question-formlet)
@@ -621,16 +623,17 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (template
      #:breadcrumb (list (cons "Home" (main-url page/main))
                         (cons "Self Evaluation" #f))
-     `(div
+     `(div ([class "eval"])
        (table
         (tr
-         (td
+         (td ([class "files-cell"])
           ,(assignment-file-display a-id))
-         (td
+         (td ([class "prompt-cell"])
           ,@(for/list ([q (in-list (assignment-questions assignment))]
                        [i (in-naturals)])
               (match-define (question nw ow prompt type) q)
-              `(div (p (span ([class "weight"])
+              `(div ([class "answers"])
+                    (p (span ([class "weight"])
                              ;; XXX incorporate optional-enable
                              ,(real->decimal-string (+ nw ow) 4))
                        ,prompt)
@@ -995,11 +998,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             (- (assignment-due-secs assignment) (current-seconds)))
           (template
            #:breadcrumb (list (cons "Home" (main-url page/main)) 
-                                    (cons (format "Manage Files - ~a" a-id) #f))
+                              (cons (format "Manage Files - ~a" a-id) #f))
            `(p ,(format "File Management for ~a ~a" a-id
                         (if (seconds-left . < . 0)
                           "is closed"
-                          (format "closes in ~a" (secs->time-text seconds-left)))))
+                          (format "closes in ~a" 
+                                  (secs->time-text seconds-left)))))
            `(table
              (tr (th "Filename") (th "Delete?"))
              ,@(map
@@ -1014,11 +1018,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
            `(form ([action ,k-url]
                    [method "post"]
                    [enctype "multipart/form-data"])
-                  (table
-                   (tr (td (input ([type "file"]
-                                   [name "new-file"])))
-                       (td (input ([type "submit"]
-                                   [value "Add File"])))))))))))
+                  (input ([type "file"]
+                          [name "new-file"]))
+                  (input ([type "submit"]
+                                   [value "Add File"]))))))))
     (define file-content (binding:file-content new-file-binding))
     (when (contains-greater-than-80-char-line? file-content)
       (error 'upload-file
@@ -1221,7 +1224,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           (a ([href "http://racket-lang.org/"]) "Racket") ". "
           "Written by "
           (a ([href "http://trevoroakes.com/"]) "Trevor Oakes") " and "
-          (a ([href "http://faculty.cs.byu.edu/~jay"]) "Jay McCarthy") ". "))
+          (a ([href "http://faculty.cs.byu.edu/~jay"]) "Jay McCarthy") ". "
+          (br)
+          (span ([id "timestamp"]) 
+                ,(date->string (seconds->date (current-seconds)) #t))))
 
   (define (tabs header . the-tabs)
     (define found-selected? #f)
