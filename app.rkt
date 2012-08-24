@@ -24,10 +24,6 @@
 
 (define DEBUG? #t)
 
-;; XXX TODO There are bunch of "simple" display XXXs in the code, such
-;; as display the student's username and photo in the admin
-;; grading. T-bone, please deal with those.
-
 ;; XXX TODO Style
 ;; XXX Style - better colors for grades
 ;; XXX Show file management on the same page as view files if before deadline
@@ -37,11 +33,11 @@
 ;; XXX TODO Ask questions simultaneously and/or have better keyboarding
 ;; XXX TODO Allowing comments on self-eval answers after admin
 
-;; XXX TODO find uses of real->decimal string and unify to one
-;; function for displaying a %
-
 ;; XXX TODO Enforcing optional-enable
 ;; XXX TODO Dealing with your-split (wlang1/wlang2)
+
+(define (format-% v)
+  (format "~a%" (real->decimal-string (* 100 v) 2)))
 
 (define (string->lines s)
   (string-split s "\n"))
@@ -100,7 +96,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (directory-list* pth)
     (if (directory-exists? pth)
-      (map path->last-part (directory-list pth))
+      (sort (map path->last-part (directory-list pth))
+            string-ci<=?)
       empty))
 
 (define-runtime-path source-dir ".")
@@ -490,8 +487,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (define g (compute-grade default-grade))
     (define l (letter-grade g))
     `(span ([class ,(substring l 0 1)])
-           ,(format "~a% (~a)"
-                    (real->decimal-string (* 100 g) 4)
+           ,(format "~a (~a)"
+                    (format-% g)
                     l)))
 
   (define boolean-formlet
@@ -611,7 +608,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                               "Yes"
                               "No")]
                            [(answer:numeric _ _ value)
-                            (real->decimal-string value 4)])))
+                            (format-% value)])))
              ;; XXX add line links
              ,(string->linked-html (answer-comments ans)))]
       [else
@@ -635,7 +632,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
               `(div ([class "answers"])
                     (p (span ([class "weight"])
                              ;; XXX incorporate optional-enable
-                             ,(real->decimal-string (+ nw ow) 4))
+                             ,(format-% (+ nw ow)))
                        ,prompt)
                     ,(format-answer
                       "Self"
@@ -672,7 +669,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                 `(div
                   (p (span ([class "weight"])
                            ;; XXX incorporate optional-enable
-                           ,(real->decimal-string (+ nw ow) 4))
+                           ,(format-% (+ nw ow)))
                      ,prompt)
                   ,(format-answer
                     "Peer's Self"
@@ -924,12 +921,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                            "completed"
                            "incomplete"))])
         (tr (td ,(assignment-id a))
-            (td ,(real->decimal-string
-                  (* 100
-                     (+ (assignment-normal-weight a)
-                        (assignment-optional-weight a)))
-                  4)
-                "%")
+            (td ,(format-%
+                  (+ (assignment-normal-weight a)
+                     (assignment-optional-weight a))))
             (td ,(if next-due
                    (format
                     "Due ~a in ~a"
@@ -1227,8 +1221,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           "Powered by "
           (a ([href "http://racket-lang.org/"]) "Racket") ". "
           "Written by "
+          (a ([href "http://faculty.cs.byu.edu/~jay"]) "Jay McCarthy")
+          ","
           (a ([href "http://trevoroakes.com/"]) "Trevor Oakes") " and "
-          (a ([href "http://faculty.cs.byu.edu/~jay"]) "Jay McCarthy") ". "
+          "BYU PLT."
           (br)
           (span ([id "timestamp"]) 
                 ,(date->string (seconds->date (current-seconds)) #t))))
