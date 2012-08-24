@@ -1187,23 +1187,23 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                  (cons "Grading" #f)
                                  (cons u #f)
                                  (cons id #f))
-              `(div
-                (div ([class "student-info"])
-                     (img ([src ,(main-url page/student/photo u)]
-                           [height "80"])) 
-                     (br)
-                     ,(student-display-name u))
-                (table ([class "eval"])
+              `(div ([class "eval"])            
+                (table 
                  (tr
                   (td ([class "files-cell"])
                    ,(parameterize ([current-user u])
                       (assignment-file-display id))
                    (td ([class "prompt-cell"])
-                    (p ,(question-prompt q))
-                    (form 
-                     ([action ,k-url] [method "post"])
-                     ,@(formlet-display the-formlet)
-                     (input ([type "submit"] [value "Submit"])))))))))))))
+                       (div ([class "student-info"])
+                            (img ([src ,(main-url page/student/photo u)]
+                                  [height "80"])) 
+                            (br)
+                            ,(student-display-name u))
+                       (p ,(question-prompt q))
+                       (form 
+                        ([action ,k-url] [method "post"])
+                        ,@(formlet-display the-formlet)
+                        (input ([type "submit"] [value "Submit"])))))))))))))
        (define ans
          ((match (question-type q)
             ['bool
