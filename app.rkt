@@ -621,6 +621,32 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        `(div ([class ,(format "answer incomplete ~a" which)])
              (p ,(format "Your ~a evaluation is not completed." which)))]))
 
+  (define (page/assignment/generalized/html a-id #:peer [peer #f])
+    (define assignment (id->assignment a-id))
+    (parameterize ([current-user (or peer (current-user))])
+      `(div ([class "eval"])
+        (div ([class "files-cell"])
+             ,(assignment-file-display a-id))
+        (div ([class "prompt-cell"])
+             ,@(for/list ([q (in-list (assignment-questions assignment))]
+                          [i (in-naturals)])
+                 (match-define (question nw ow prompt type) q)
+                 `(div ([class "answers"])
+                       (p (span ([class "weight"])
+                                ;; XXX incorporate optional-enable
+                                ,(format-% (+ nw ow)))
+                          ,prompt)
+                       ,(format-answer
+                         (if peer "Peer's Self" "Self")
+                         (assignment-question-student-grade a-id i))
+                       ,(format-answer
+                         (if peer "Peer's Professor" "Professor")
+                         (assignment-question-prof-grade a-id i))
+                       ,(format-answer
+                         "Peer"
+                         (assignment-question-peer-grade a-id i))))))))
+    
+  
   (define (page/assignment/self req a-id)
     (define assignment (id->assignment a-id))
     (template
@@ -629,31 +655,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             (cons "Assignments" #f)
             (cons a-id #f)
             (cons "Self Evaluation" #f))
-     `(div ([class "eval"])
-       (table
-        (tr
-         (td ([class "files-cell"])
-          ,(assignment-file-display a-id))
-         (td ([class "prompt-cell"])
-          ,@(for/list ([q (in-list (assignment-questions assignment))]
-                       [i (in-naturals)])
-              (match-define (question nw ow prompt type) q)
-              `(div ([class "answers"])
-                    (p (span ([class "weight"])
-                             ;; XXX incorporate optional-enable
-                             ,(format-% (+ nw ow)))
-                       ,prompt)
-                    ,(format-answer
-                      "Self"
-                      (assignment-question-student-grade a-id i))
-                    ,(format-answer
-                      "Professor"
-                      (assignment-question-prof-grade a-id i))
-                    ,(format-answer
-                      "Peer"
-                      (assignment-question-peer-grade a-id i))))))))))
+     (page/assignment/generalized/html a-id)))
 
-  ;; XXX abstract this and above
   (define (page/assignment/peer req a-id)
     (define assignment (id->assignment a-id))
     (define peer (assignment-peer a-id))
@@ -665,35 +668,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (if (equal? default-peer peer)
       (template
        #:breadcrumb the-breadcrumb
-       `(div "Your peer has not been assigned."))
+       `(div ([class "notice"]) "Your peer has not been assigned."))
       (template
        #:breadcrumb the-breadcrumb
-       `(div
-         (table
-          (tr
-           (td
-            ,(parameterize ([current-user peer])
-               (assignment-file-display a-id)))
-           (td
-            ,@(for/list ([q (in-list (assignment-questions assignment))]
-                         [i (in-naturals)])
-                (match-define (question nw ow prompt type) q)
-                `(div
-                  (p (span ([class "weight"])
-                           ;; XXX incorporate optional-enable
-                           ,(format-% (+ nw ow)))
-                     ,prompt)
-                  ,(format-answer
-                    "Peer's Self"
-                    (parameterize ([current-user peer])
-                      (assignment-question-student-grade a-id i)))
-                  ,(format-answer
-                    "Peer's Professor"
-                    (parameterize ([current-user peer])
-                      (assignment-question-prof-grade a-id i)))
-                  ,(format-answer
-                    "Peer"
-                    (assignment-question-student-grade/peer a-id i)))))))))))
+       (page/assignment/generalized/html a-id #:peer peer))))
 
   (define (page/assignment/peer/edit req a-id)
     (define assignment (id->assignment a-id))
@@ -1080,8 +1058,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                             (a ([href ,(main-url page/logout)]) "logout"))
                      ""))
              (div ([class "content"])
-                  ,@bodies
-                  ,(footer))))))
+                  ,@bodies)
+             ,(footer)))))
 
   (define (page/student/photo req student)
     (parameterize ([current-user student])
