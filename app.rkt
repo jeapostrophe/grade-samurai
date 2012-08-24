@@ -259,12 +259,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       page/account]
      [("student" (string-arg) "photo.jpg")
       page/student/photo]
-     [("assignment" (string-arg) "files" "edit")
-      page/assignment/files/edit]
+     [("assignment" (string-arg) "files")
+      page/assignment/files]
      [("assignment" (string-arg) "files" "delete" (string-arg))
       page/assignment/files/delete]
-     [("assignment" (string-arg) "files") 
-      page/assignment/files]
      [("assignment" (string-arg) "self" "edit")
       page/assignment/self/edit]
      [("assignment" (string-arg) "self")
@@ -273,14 +271,6 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       page/assignment/peer/edit]
      [("assignment" (string-arg) "peer")
       page/assignment/peer]))
-
-  (define (page/assignment/files req a-id)
-    (template
-     #:breadcrumb (list (cons "Home" (main-url page/root))
-                        (cons "Assignments" #f)
-                        (cons a-id #f)
-                        (cons "Files" #f))
-     (assignment-file-display a-id)))  
 
   (define default-peer
     "The Spanish Inquisition")
@@ -960,7 +950,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         (tr (td ,(cond-hyperlink
                   (current-seconds) (assignment-due-secs a)
                   "Turn in Files"
-                  (main-url page/assignment/files/edit
+                  (main-url page/assignment/files
                             (assignment-id a))
                   "View Files"
                   (main-url page/assignment/files (assignment-id a))))
@@ -1004,9 +994,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         (build-path (assignment-file-path a-id) file-to-delete))
       (when (file-exists? file-path)
         (delete-file file-path)))
-    (redirect-to (main-url page/assignment/files/edit a-id)))
+    (redirect-to (main-url page/assignment/files a-id)))
 
-  (define (page/assignment/files/edit req a-id)
+  (define (page/assignment/files req a-id)
     (define assignment
       (findf (λ (a) (string=? a-id (assignment-id a))) assignments))
     (define (extract-binding:file req)
@@ -1023,34 +1013,41 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                               (cons "Assignments" #f)
                               (cons a-id #f)
                               ;; XXX
-                              (cons "Files" #f)
-                              (cons "Edit" #f))
-           `(p ([class "notice"])
-               ,(format "File Management for ~a ~a" a-id
-                        (if (seconds-left . < . 0)
-                          "is closed"
-                          (format "closes in ~a" 
-                                  (secs->time-text seconds-left)))))
-           (if (empty? files)
-            `(p ([class "notice"]) "No files uploaded yet for this assignment")
-            `(table ([class "upload-table"])
-             (tr (th "Filename") (th "Delete?"))
-             ,@(map
-                (λ (filename)
-                  `(tr (td ,filename)
-                       (td (a ([href ,(main-url 
-                                       page/assignment/files/delete a-id
-                                       filename)])
-                              "X"))))
-                files)))
-           ;; XXX Add a textarea box
-           `(form ([action ,k-url]
-                   [method "post"]
-                   [enctype "multipart/form-data"])
-                  (input ([type "file"]
-                          [name "new-file"]))
-                  (input ([type "submit"]
-                                   [value "Add File"]))))))))
+                              (cons "Files" #f))
+           `(div ([class "eval"])
+                 (table
+                  (tr
+                   (td ([class "files-cell"])
+                       ,(assignment-file-display a-id))
+                   (td ([class "prompt-cell"])
+                       (p ([class "notice"])
+                          ,(format "File Management for ~a ~a" a-id
+                                   (if (seconds-left . < . 0)
+                                       "is closed"
+                                       (format "closes in ~a" 
+                                               (secs->time-text seconds-left)))))
+                       ,(if (empty? files)
+                            `(p ([class "notice"]) "No files uploaded yet for this assignment")
+                            `(table ([class "upload-table"])
+                                    (tr (th "Filename") (th "Delete?"))
+                                    ,@(map
+                                       (λ (filename)
+                                         `(tr (td ,filename)
+                                              (td (a ([href ,(main-url 
+                                                              page/assignment/files/delete a-id
+                                                              filename)])
+                                                     "X"))))
+                                       files)))
+                       ;; XXX Add a textarea box
+                       (form ([action ,k-url]
+                              [method "post"]
+                              [enctype "multipart/form-data"])
+                             (input ([type "file"]
+                                     [name "new-file"]))
+                             (input ([type "submit"]
+                                     [value "Add File"])))      
+                       ))))
+           )))))
     (define file-content (binding:file-content new-file-binding))
     (when (contains-greater-than-80-char-line? file-content)
       (error 'upload-file
@@ -1062,7 +1059,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        (build-path (assignment-file-path a-id)
                    (bytes->string/utf-8
                     (binding:file-filename new-file-binding)))))
-    (redirect-to (main-url page/assignment/files/edit a-id)))
+    (redirect-to (main-url page/assignment/files a-id)))
 
   (define (template #:breadcrumb bc
                     . bodies)
