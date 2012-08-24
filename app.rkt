@@ -344,10 +344,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (assignment-question-peer-grade id i)
     (define co-peer (assignment-co-peer id))
-    (eprintf "~v\n" (list id (current-user) co-peer))
-    (parameterize ([current-user co-peer])
-      (eprintf "~v\n" (list id (current-user) co-peer
-                            (assignment-question-student-grade-path/peer id i)))
+    (parameterize ([current-user co-peer])      
       (assignment-question-student-grade/peer id i)))
 
   ;; XXX cleanup this
@@ -754,12 +751,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (overdue-or
      (λ ()
        (for ([question (assignment-questions assignment)]
-             [i (in-naturals)])
-         (eprintf "~a\n"
-                  (list (assignment-question-student-grade-path/peer a-id i)
-                        peer-id
-                        (parameterize ([current-user peer-id])
-                          (assignment-question-student-grade-path a-id i))))
+             [i (in-naturals)])         
          (when
              (and
               ;; I have not yet graded
