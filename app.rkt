@@ -1076,7 +1076,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                          `(span ([class "not-this"]) ,name " / ")]))
                   ,(if (current-user)
                      `(span ([id "logout"])
-                            ,(current-user) " | "
+                            (a ([href ,(main-url page/account)]) ,(current-user)) " | "
                             (a ([href ,(main-url page/logout)]) "logout"))
                      ""))
              (div ([class "content"])
