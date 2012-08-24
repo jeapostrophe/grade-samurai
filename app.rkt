@@ -839,8 +839,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
      (list (cookie->header logout-id-cookie))))
 
   (define (secs->time-text secs)
-      (define s (if (secs . <= . 1) 1 secs))
-      (if (s . < . 0) (set! s 1) void)
+      (define s 
+        (if (secs . <= . 1)
+          1
+          secs))
+      (when (s . < . 0)
+        (set! s 1))
       (define unit
         (findf (λ (unit-pair) (s . >= . (car unit-pair)))
                `((,(* 60 60 24 7) . "week")
