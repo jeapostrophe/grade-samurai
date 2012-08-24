@@ -132,6 +132,16 @@ div.eval table tr td.prompt-cell div.answers p span.weight {
     border-radius: 10px;
 }
 
+.notice {
+    font-style: italic;
+}
+
+table.upload-table tr td {
+    padding-right: 3em;
+    padding-left: 3em;
+}
+
+
 #footer {
     text-align: right;
     width: 100%;

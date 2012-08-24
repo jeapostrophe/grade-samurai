@@ -24,10 +24,6 @@
 
 (define DEBUG? #t)
 
-;; XXX TODO There are bunch of "simple" display XXXs in the code, such
-;; as display the student's username and photo in the admin
-;; grading. T-bone, please deal with those.
-
 ;; XXX TODO Style
 ;; XXX Style - better colors for grades
 ;; XXX Show file management on the same page as view files if before deadline
@@ -37,11 +33,20 @@
 ;; XXX TODO Ask questions simultaneously and/or have better keyboarding
 ;; XXX TODO Allowing comments on self-eval answers after admin
 
-;; XXX TODO find uses of real->decimal string and unify to one
-;; function for displaying a %
-
 ;; XXX TODO Enforcing optional-enable
 ;; XXX TODO Dealing with your-split (wlang1/wlang2)
+
+;; XXX TODO make edit my info page with link when I click on my username
+;; XXX TODO Adding a file without browsing first throws exception
+;; XXX TODO File with lines > 80 characters throws exception, should be an actual error page
+;; XXX TODO Add assignment breadcrumbs that aren't links
+;; XXX TODO Photos with different aspect ratios are squished
+;; XXX TODO Admin and Self eval detail pages don't show peer eval
+;; XXX TODO Nowhere to see my grade on an assignment
+;; XXX TODO Peer eval wording is weird
+
+(define (format-% v)
+  (format "~a%" (real->decimal-string (* 100 v) 2)))
 
 (define (string->lines s)
   (string-split s "\n"))
@@ -100,7 +105,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (directory-list* pth)
     (if (directory-exists? pth)
-      (map path->last-part (directory-list pth))
+      (sort (map path->last-part (directory-list pth))
+            string-ci<=?)
       empty))
 
 (define-runtime-path source-dir ".")
@@ -490,8 +496,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (define g (compute-grade default-grade))
     (define l (letter-grade g))
     `(span ([class ,(substring l 0 1)])
-           ,(format "~a% (~a)"
-                    (real->decimal-string (* 100 g) 4)
+           ,(format "~a (~a)"
+                    (format-% g)
                     l)))
 
   (define boolean-formlet
@@ -614,7 +620,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                               "Yes"
                               "No")]
                            [(answer:numeric _ _ value)
-                            (real->decimal-string value 4)])))
+                            (format-% value)])))
              (script ([src "/line-highlight.js"][type "text/javascript"]) " ")
              ,(string->linked-html (answer-comments ans)))]
       [else
@@ -638,7 +644,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
               `(div ([class "answers"])
                     (p (span ([class "weight"])
                              ;; XXX incorporate optional-enable
-                             ,(real->decimal-string (+ nw ow) 4))
+                             ,(format-% (+ nw ow)))
                        ,prompt)
                     ,(format-answer
                       "Self"
@@ -675,7 +681,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                 `(div
                   (p (span ([class "weight"])
                            ;; XXX incorporate optional-enable
-                           ,(real->decimal-string (+ nw ow) 4))
+                           ,(format-% (+ nw ow)))
                      ,prompt)
                   ,(format-answer
                     "Peer's Self"
@@ -928,12 +934,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                            "completed"
                            "incomplete"))])
         (tr (td ,(assignment-id a))
-            (td ,(real->decimal-string
-                  (* 100
-                     (+ (assignment-normal-weight a)
-                        (assignment-optional-weight a)))
-                  4)
-                "%")
+            (td ,(format-%
+                  (+ (assignment-normal-weight a)
+                     (assignment-optional-weight a))))
             (td ,(if next-due
                    (format
                     "Due ~a in ~a"
@@ -1000,15 +1003,19 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         (λ (k-url)
           (define seconds-left
             (- (assignment-due-secs assignment) (current-seconds)))
+          (define files (assignment-files a-id))
           (template
            #:breadcrumb (list (cons "Home" (main-url page/main)) 
                               (cons (format "Manage Files - ~a" a-id) #f))
-           `(p ,(format "File Management for ~a ~a" a-id
+           `(p ([class "notice"])
+               ,(format "File Management for ~a ~a" a-id
                         (if (seconds-left . < . 0)
                           "is closed"
                           (format "closes in ~a" 
                                   (secs->time-text seconds-left)))))
-           `(table
+           (if (empty? files)
+            `(p ([class "notice"]) "No files uploaded yet for this assignment")
+            `(table ([class "upload-table"])
              (tr (th "Filename") (th "Delete?"))
              ,@(map
                 (λ (filename)
@@ -1017,7 +1024,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                        page/assignment/files/delete a-id
                                        filename)])
                               "X"))))
-                (assignment-files a-id)))
+                files)))
            ;; XXX Add a textarea box
            `(form ([action ,k-url]
                    [method "post"]
@@ -1228,8 +1235,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           "Powered by "
           (a ([href "http://racket-lang.org/"]) "Racket") ". "
           "Written by "
+          (a ([href "http://faculty.cs.byu.edu/~jay"]) "Jay McCarthy")
+          ","
           (a ([href "http://trevoroakes.com/"]) "Trevor Oakes") " and "
-          (a ([href "http://faculty.cs.byu.edu/~jay"]) "Jay McCarthy") ". "
+          "BYU PLT."
           (br)
           (span ([id "timestamp"]) 
                 ,(date->string (seconds->date (current-seconds)) #t))))
