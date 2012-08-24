@@ -28,7 +28,6 @@
 ;; XXX TODO style - make the question follow the scroll bar when looking at the code
 
 ;; XXX TODO Ask questions simultaneously and/or have better keyboarding
-;; XXX TODO Allowing comments on self-eval answers after admin
 
 ;; XXX TODO Enforcing optional-enable
 ;; XXX TODO Dealing with your-split (wlang1/wlang2)
