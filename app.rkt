@@ -28,7 +28,7 @@
 ;; XXX TODO Style - shrink textarea widths to not scroll
 ;; XXX TODO Style - add padding in side-by-sides
 
-;; XXX TODO Ask questions simultaneously and/or have better keyboarding
+;; XXX TODO Experiment with more keyboard
 
 ;; XXX TODO Enforcing optional-enable
 ;; XXX TODO Dealing with your-split (wlang1/wlang2)
@@ -483,28 +483,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     `(span ([class ,(substring l 0 1)])
            ,(format "~a (~a)"
                     (format-% g)
-                    l)))
-
-  (define boolean-formlet
-    (formlet
-     (p ,{(radio-group '(#t #f)
-                       #:checked? (λ (x) x)
-                       #:display (λ (x) (if x "Yes" "No")))
-          . => . credit})
-     credit))
-  (define numeric-formlet
-    (formlet
-     (p ,{(to-number input-string) . => . percent}
-        "(Enter a number between 0 and 1)")
-     percent))
-
-  (define evidence-formlet
-    (formlet
-     (div (p "Provide evidence to justify that score.")
-          ,{(to-string (required (textarea-input #:rows 8 #:cols 80)))
-            . => . comment}
-          (p "(If you need to refer to line numbers, prefix a number with L. For example, use L32 or l32 to refer to line 32)"))
-     comment))
+                    l)))  
 
   (define (page/assignment/self/edit req a-id)
     (define assignment (id->assignment a-id))
@@ -732,47 +711,103 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                           #:their? [their? #t]
                           #:peer? [peer? #f]
                           #:extra [extra empty])
-    (define score-formlet
-      (match (question-type question)
-        ['numeric
-         numeric-formlet]
-        ['bool
-         boolean-formlet]))
-    (define the-formlet
+    (define boolean-formlet
       (formlet
-       (div
-        ,(if their?
-           (format-answer "Their" 
-                          (parameterize ([current-user stu])
-                            (assignment-question-student-grade a-id i)))
-           "")
-        ,(if peer?
-           (format-answer "Peer" 
-                          (parameterize ([current-user stu])
-                            (assignment-question-peer-grade a-id i)))
-           "")        
-        (p "What do you think they earned?")
-        ,{score-formlet . => . peer-score}
-        ,{evidence-formlet . => . comment})
-       (values peer-score comment)))
+       (p ,{(radio-group '(#t #f)
+                         #:checked? (λ (x) x)
+                         #:display (λ (x) (if x "Yes" "No")))
+            . => . credit})
+       credit))   
 
-    (define-values (score comment)
-      (formlet-process
-       the-formlet
-       (send/suspend
-        (λ (k-url)
-          (template
-           #:breadcrumb bc
-           (parameterize ([current-user stu])
-             (side-by-side-render
-              a-id
-              (append 
-               extra
-               (list 
-                `(p ,(question-prompt question))
-                `(form ([action ,k-url] [method "post"])
-                       ,@(formlet-display the-formlet)
-                       (input ([type "submit"] [value "Submit"]))))))))))))
+    (define request
+      (send/suspend
+       (λ (k-url)
+         (template
+          #:breadcrumb bc
+          (parameterize ([current-user stu])
+            (side-by-side-render
+             a-id
+             (append 
+              extra
+              (list 
+               `(p ,(question-prompt question))
+               (if their?
+                 (format-answer 
+                  "Their" 
+                  (parameterize ([current-user stu])
+                    (assignment-question-student-grade a-id i)))
+                 "")
+               (if peer?
+                 (format-answer
+                  "Peer" 
+                  (parameterize ([current-user stu])
+                    (assignment-question-peer-grade a-id i)))
+                 "")        
+               (if their?
+                 `(p "What do you think they earned?")
+                 "")
+               `(form ([action ,k-url] [method "post"])
+                      ,(match (question-type question)
+                         ['bool
+                          `(p (button ([name "submit"]
+                                       [type "submit"]
+                                       [value "bool_Y"])
+                                      "Yes")
+                              (button ([name "submit"]
+                                       [type "submit"]
+                                       [value "bool_N"])
+                                      "No"))]
+                         ['numeric
+                          `(p (button ([name "submit"]
+                                       [type "submit"]
+                                       [value "num_0"])
+                                      "0")
+                              (button ([name "submit"]
+                                       [type "submit"]
+                                       [value "num_0.5"])
+                                      "0.5")
+                              (button ([name "submit"]
+                                       [type "submit"]
+                                       [value "num_1"])
+                                      "1")
+                              (input ([name "numeric"]
+                                      [type "text"]
+                                      [value "[0, 1]"]))
+                              (button ([name "submit"]
+                                       [type "submit"]
+                                       [value "num_input"])
+                                      "Other"))])
+                      (p "Provide evidence to justify that score.")
+                      (textarea ([name "comments"]
+                                 [rows "8"]
+                                 [cols "80"]))
+                      (p "(If you need to refer to line numbers, prefix a number with L. For example, use L32 or l32 to refer to line 32)"))))))))))
+
+    (define bs
+      (request-bindings/raw request))
+    (define comment
+      (bytes->string/utf-8
+       (binding:form-value 
+        (bindings-assq #"comments" bs))))
+    (define score 
+      (match 
+          (binding:form-value 
+           (bindings-assq #"submit" bs))
+        [#"bool_Y"
+         #t]
+        [#"bool_N"
+         #f]
+        [#"num_0"
+         0]
+        [#"num_0.5"
+         1/2]
+        [#"num_1"
+         1]
+        [#"num_input"
+         (string->number
+          (bytes->string/utf-8
+           (binding:form-value 
+            (bindings-assq #"numeric" bs))))]))
 
     ((match (question-type question)
        ['bool
