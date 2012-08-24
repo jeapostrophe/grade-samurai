@@ -1,9 +1,74 @@
-table.optional {
-    background: blue;
+html {
+  overflow-y: scroll;
 }
 
-table.optenable {
-    background: green;
+a img {
+ border: 0;
+}
+
+body {
+  color: black;
+  background-color: white;
+  font-family: Optima, Arial, Verdana, Helvetica, sans-serif;
+  margin: 0px;
+  padding: 0px;
+}
+
+.breadcrumb {
+  padding-left: 1em;
+  padding-right: 1em;
+  background: #FFCC66;
+  font-size: 120%;
+  font-weight: bold;
+}
+
+.breadcrumb a {
+    color: black;
+    text-decoration: none;
+    font-weight: normal;
+}
+
+.breadcrumb a:hover {
+    color: blue;
+    text-decoration: underline;
+}
+
+#logout {
+    float: right;
+}
+
+#class-score table {
+    width: 100%;
+    text-align: center;
+    background: #eceeec;
+    border-radius: 10px;
+}
+
+div.assignments h1 {
+    text-align: center;
+    font-size: large;
+}
+
+table.assignment {
+    width: 100%;
+    margin-bottom: 1em;
+    border: 1px dashed;
+    border-radius: 5px;
+}
+
+table.assignment.optional {
+    background: #b5d6f8;   
+}
+
+table.assignment.optenable {
+    background: #b5f8be;
+}
+
+table.assignment tr td:nth-child(1) {
+    width: 15%;
+}
+table.assignment tr td:nth-child(2) {
+    width: 30%;
 }
 
 span.A {
@@ -24,4 +89,17 @@ span.D {
 
 span.F {
     color: #FF1E00;
+}
+
+.content {
+  margin-left: auto;
+  margin-right: auto;
+  width: 95%;
+}
+
+#footer {
+    text-align: right;
+    width: 100%;
+    background: #F5F5DC;
+    margin-top: 2em;
 }

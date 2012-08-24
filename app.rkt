@@ -29,6 +29,7 @@
 ;; grading. T-bone, please deal with those.
 
 ;; XXX TODO Style
+;; XXX Style - better colors for grades
 ;; XXX TODO Fix bread crumbs in template calls
 
 ;; XXX TODO Ask questions simultaneously and/or have better keyboarding
@@ -480,7 +481,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
            line-offset))
         (values (append html (list table)) new-offset)))
     
-    `(div ([id "files"])
+    `(div ([class "files"])
           ,@html))
 
   (define (format-grade default-grade)
@@ -529,7 +530,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          (send/suspend
           (λ (k-url)
             (template
-             #:breadcrumb (list (cons "Home" (main-url page/main)) (cons "Self Evaluation" #f))
+             #:breadcrumb
+             (list (cons "Home" (main-url page/main))
+                   (cons "Self Evaluation" #f))
              `(div
                (table
                 (tr
@@ -552,7 +555,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (if (<= (assignment-eval-secs assignment) (current-seconds))
         (send/back
          (template
-          #:breadcrumb (list (cons "Home" (main-url page/main)) (cons "Self Evaluation" #f))
+          #:breadcrumb
+          (list (cons "Home" (main-url page/main))
+                (cons "Self Evaluation" #f))
           "Self evaluation past due."))
         (thunk)))
 
@@ -574,26 +579,23 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         "Self evaluation completed."))))
 
   (define (format-answer which ans)
-    #;((printf "~a\n" (string->linked-html "on l32 and L3 is"))
-    (printf "~a" `(p "on " (a ([href "#L32"]) "l32") " and "
-                     (a ([href "#L3"]) "L3") " is"))
-    '((3 . 6)(11 . 13))
-    `(p ,(substring s 0 3) (a ([href ,(format "#~a" (upcase (substring s 3 6)))]) ,(substring s 3 6)) 
-        ,(substring s 6 11) (a ([href ,(format "#~a" (upcase (substring s 11 13)))]) ,(substring s 11 13))
-        ,(substring s 13 (length s))))
     (define (string->linked-html s)
       (define positions
         (regexp-match-positions* #px"[l|L]\\d+" s))
       (define-values (html pos)
         (for/fold ([html empty] [pos 0])
           ([pos-pair positions])
-          (values (append html 
-                          (list 
-                           (substring s pos (car pos-pair))
-                           `(a ([href ,(format "#~a" (string-upcase (substring s 
-                                                                        (car pos-pair)
-                                                                        (cdr pos-pair))))])
-                               ,(substring s (car pos-pair) (cdr pos-pair)))))
+          (values 
+           (append 
+            html 
+            (list 
+             (substring s pos (car pos-pair))
+             `(a ([href 
+                   ,(format "#~a" 
+                            (string-upcase (substring s 
+                                                      (car pos-pair)
+                                                      (cdr pos-pair))))])
+                 ,(substring s (car pos-pair) (cdr pos-pair)))))
                   (cdr pos-pair))))
       `(p ,@html ,(substring s pos (string-length s))))
     (cond
@@ -617,7 +619,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (page/assignment/self req a-id)
     (define assignment (id->assignment a-id))
     (template
-     #:breadcrumb (list (cons "Home" (main-url page/main)) (cons "Self Evaluation" #f))
+     #:breadcrumb (list (cons "Home" (main-url page/main))
+                        (cons "Self Evaluation" #f))
      `(div
        (table
         (tr
@@ -647,10 +650,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (define peer (assignment-peer a-id))
     (if (equal? default-peer peer)
       (template
-       #:breadcrumb (list (cons "Home" (main-url page/main)) (cons "Peer Evaluation" #f))
+       #:breadcrumb (list (cons "Home" (main-url page/main))
+                          (cons "Peer Evaluation" #f))
        `(div "Your peer has not been assigned."))
       (template
-       #:breadcrumb (list (cons "Home" (main-url page/main)) (cons "Peer Evaluation" #f))
+       #:breadcrumb (list (cons "Home" (main-url page/main))
+                          (cons "Peer Evaluation" #f))
        `(div
          (table
           (tr
@@ -810,26 +815,28 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (values 
      `(div ([class "file"])
            (div ([class "meta"]) ,(format "~a" (path->last-part file-path)))
-           (div ([class "data type-text"])
-                (table ([class "lines"][cellspacing "0"][cellpadding "0"])
-                       (tbody
-                        (tr
-                         (td
-                          (pre ([class "line_numbers"]
-                                [style "margin: 0pt; padding-right: 10px;"])
-                               ,@(map
-                                  (λ (n)
-                                    `(span ([id ,(format "L~a" n)]
-                                            [rel ,(format "#L~a" n)])
-                                           ,(number->string n) (br)))
-                                  (build-list (length file-lines) 
-                                              (curry + line-offset)))))
-                         (td ([width "100%"])
-                             (div ([class "highlight"])
-                                  (pre
-                                   ,@(map line->line-content-div file-lines
-                                          (build-list (length file-lines)
-                                                      (curry + line-offset)))))))))))
+           (div 
+            ([class "data type-text"])
+            (table 
+             ([class "lines"][cellspacing "0"][cellpadding "0"])
+             (tbody
+              (tr
+               (td
+                (pre ([class "line_numbers"]
+                      [style "margin: 0pt; padding-right: 10px;"])
+                     ,@(map
+                        (λ (n)
+                          `(span ([id ,(format "L~a" n)]
+                                  [rel ,(format "#L~a" n)])
+                                 ,(number->string n) (br)))
+                        (build-list (length file-lines) 
+                                    (curry + line-offset)))))
+               (td ([width "100%"])
+                   (div ([class "highlight"])
+                        (pre
+                         ,@(map line->line-content-div file-lines
+                                (build-list (length file-lines)
+                                            (curry + line-offset)))))))))))
      (+ line-offset (length file-lines))))
     
   (define (page/logout req)
@@ -878,11 +885,15 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         [else
          `(a ([href ,link1]) ,text1)]))
     ;; TODO base off which phases they can still do
-    (define-values (upcoming past)
+    (define-values (past upcoming)
       (partition
-       (λ (a) (((assignment-due-secs a) . + . 2-days)
-               . > . (current-seconds)))
-       (sort assignments < #:key assignment-due-secs)))
+       (λ (a) 
+         (if (assignment-peer-secs a)
+           (or (peer-eval-completed? a)
+               (> (current-seconds) (assignment-peer-secs a)))
+           (or (self-eval-completed? a)
+               (> (current-seconds) (assignment-eval-secs a)))))
+       assignments))
    
     ;; TODO render offline assignments (like the final) differently
     (define (render-assignment a)
@@ -897,49 +908,54 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           [else
            (assignment-due-secs a)]))
 
-      `(table ([class ,(cond
-                         [(not (zero? (assignment-optional-weight a)))
-                          "optional"]
-                         [(not (zero? (assignment-normal-weight a)))
-                          "normal"]
-                         [else
-                          "optenable"])])
-              (tr (td ,(assignment-id a))
-                  (td ,(real->decimal-string
-                        (* 100
-                           (+ (assignment-normal-weight a)
-                              (assignment-optional-weight a)))
-                        4)
-                      "%")
-                  (td ,(if next-due
-                         (format
-                          "Due ~a in ~a"
-                          (date->string (seconds->date next-due))
-                          (secs->time-text (- next-due (current-seconds))))
-                         "Completed")))
-              (tr (td ,(cond-hyperlink
-                        (current-seconds) (assignment-due-secs a)
-                        "Turn in Files"
-                        (main-url page/assignment/files/edit
-                                  (assignment-id a))
-                        "View Files"
-                        (main-url page/assignment/files (assignment-id a))))
-                  (td ,(cond-hyperlink
-                        (assignment-due-secs a) (assignment-eval-secs a)
-                        "Self Evaluation"
-                        (main-url page/assignment/self/edit
-                                  (assignment-id a))
-                        "Self Evaluation Details"
-                        (main-url page/assignment/self
-                                  (assignment-id a))))
-                  (td ,(cond-hyperlink
-                        (assignment-eval-secs a) (assignment-peer-secs a)
-                        "Grade a Peer"
-                        (main-url page/assignment/peer/edit
-                                  (assignment-id a))
-                        "Grade a Peer Details"
-                        (main-url page/assignment/peer
-                                  (assignment-id a)))))))
+      `(table 
+        ([class ,(format "assignment ~a ~a"
+                         (cond
+                           [(not (zero? (assignment-optional-weight a)))
+                            "optional"]
+                           [(not (zero? (assignment-normal-weight a)))
+                            "normal"]
+                           [else
+                            "optenable"])
+                         (if (peer-eval-completed? a)
+                           "completed"
+                           "incomplete"))])
+        (tr (td ,(assignment-id a))
+            (td ,(real->decimal-string
+                  (* 100
+                     (+ (assignment-normal-weight a)
+                        (assignment-optional-weight a)))
+                  4)
+                "%")
+            (td ,(if next-due
+                   (format
+                    "Due ~a in ~a"
+                    (date->string (seconds->date next-due))
+                    (secs->time-text (- next-due (current-seconds))))
+                   "Completed")))
+        (tr (td ,(cond-hyperlink
+                  (current-seconds) (assignment-due-secs a)
+                  "Turn in Files"
+                  (main-url page/assignment/files/edit
+                            (assignment-id a))
+                  "View Files"
+                  (main-url page/assignment/files (assignment-id a))))
+            (td ,(cond-hyperlink
+                  (assignment-due-secs a) (assignment-eval-secs a)
+                  "Self Evaluation"
+                  (main-url page/assignment/self/edit
+                            (assignment-id a))
+                  "Self Evaluation Details"
+                  (main-url page/assignment/self
+                            (assignment-id a))))
+            (td ,(cond-hyperlink
+                  (assignment-eval-secs a) (assignment-peer-secs a)
+                  "Grade a Peer"
+                  (main-url page/assignment/peer/edit
+                            (assignment-id a))
+                  "Grade a Peer Details"
+                  (main-url page/assignment/peer
+                            (assignment-id a)))))))
     (send/back
      (template
       #:breadcrumb (list (cons "Student Main Page" #f))
@@ -949,9 +965,11 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                        (th "Maximum Final Grade"))
                    (tr (td ,(format-grade 0))
                        (td ,(format-grade 1)))))
-      `(div ([id "upcoming-assignments"])
+      `(div ([class "assignments upcoming"])
+            (h1 "Future")
             ,@(map render-assignment upcoming))
-      `(div ([id "past-assignments"])
+      `(div ([class "assignments past"])
+            (h1 "Past")
             ,@(map render-assignment past)))))
 
   (define (page/assignment/files/delete req a-id file-to-delete)
