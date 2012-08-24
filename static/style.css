@@ -154,6 +154,37 @@ table.upload-table tr td {
     background-color: yellow;
 }
 
+#grade-button {
+    text-align: center;
+    width: 100%;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+}
+
+table#grades {
+    width: 100%;
+}
+
+table#grades thead tr {
+    background: #FFCC66;
+}
+
+table#grades tbody tr:nth-child(2n) {
+    background: #F5F5DC;
+}
+
+table#grades th:nth-child(2),th:nth-child(3) {
+    text-align: right;
+}
+
+table#grades tr td:nth-child(2),td:nth-child(3) {
+    text-align: right;
+}
+
+div.student-info {
+    text-align: center;
+}
+
 #footer {
     text-align: right;
     width: 100%;
