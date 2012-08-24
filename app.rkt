@@ -736,9 +736,14 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                   (assignment-question-student-grade-path a-id i))))
            (define grade
              (grade-question
-              peer-id a-id question
-              (parameterize ([current-user peer-id])
-                (assignment-question-student-grade a-id i))))
+              peer-id a-id question i
+              #:peer? #t
+              #:breadcrumb
+              (list (cons "Home" (main-url page/root)) 
+                    (cons "Assignments" #f)
+                    (cons a-id #f)
+                    (cons "Peer Evaluation" #f)
+                    (cons "Edit" #f))))
            (overdue-or
             (λ ()
               (write-to-file*
@@ -747,9 +752,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
        (template
         #:breadcrumb the-breadcrumb
-        "Peer evaluation completed, or not available (as peer has not finished their grading.)"))))
+        "Peer evaluation completed, or not available (as peer has not finished their grading.)"))))  
 
-  (define (grade-question stu a-id question q-self-eval)
+  (define (grade-question stu a-id question i
+                          #:breadcrumb bc
+                          #:peer? [peer? #f]
+                          #:extra [extra empty])
     (define score-formlet
       (match (question-type question)
         ['numeric
@@ -759,30 +767,37 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (define the-formlet
       (formlet
        (div
-        ,(format-answer "Their" q-self-eval)
+        ,(format-answer "Their" 
+                        (parameterize ([current-user stu])
+                          (assignment-question-student-grade a-id i)))
+        ,(if peer?
+           (format-answer "Peer" 
+                          (parameterize ([current-user stu])
+                            (assignment-question-peer-grade a-id i)))
+           "")        
         (p "What do you think they earned?")
         ,{score-formlet . => . peer-score}
         ,{evidence-formlet . => . comment})
        (values peer-score comment)))
+
     (define-values (score comment)
       (formlet-process
        the-formlet
        (send/suspend
         (λ (k-url)
           (template
-           #:breadcrumb (list (cons "Home" (main-url page/root)) 
-                              (cons "Assignments" #f)
-                              (cons a-id #f)
-                              (cons "Peer Evaluation" #f)
-                              (cons "Edit" #f))
+           #:breadcrumb bc
            (parameterize ([current-user stu])
              (side-by-side-render
               a-id
-              (list 
-               `(p ,(question-prompt question))
-               `(form ([action ,k-url] [method "post"])
-                      ,@(formlet-display the-formlet)
-                      (input ([type "submit"] [value "Submit"])))))))))))
+              (append 
+               extra
+               (list 
+                `(p ,(question-prompt question))
+                `(form ([action ,k-url] [method "post"])
+                       ,@(formlet-display the-formlet)
+                       (input ([type "submit"] [value "Submit"]))))))))))))
+
     ((match (question-type question)
        ['bool
         answer:bool]
@@ -1162,59 +1177,23 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                   (parameterize ([current-user u])
                     (assignment-question-prof-grade-path id i))))
           (cons q i)))
-       
-       (define score-formlet
-         (match (question-type q)
-           ['numeric numeric-formlet]
-           ['bool boolean-formlet]))
-       (define the-formlet
-         (parameterize ([current-user u])
-           (formlet
-            (div
-             ,(format-answer 
-               "Their"
-               (assignment-question-student-grade id i))
-             ,(format-answer
-               "Peer"
-               (assignment-question-peer-grade id i))
-             (p "What do you think they earned?")
-             ,{score-formlet . => . prof-score}
-             ,{evidence-formlet . => . comment})
-            (values prof-score comment))))
 
-       (define-values (score comment)
-         (formlet-process
-          the-formlet
-          (send/suspend
-           (λ (k-url)
-             (template
-              #:breadcrumb (list (cons "Admin" (main-url page/admin))
-                                 (cons "Grading" #f)
-                                 (cons (student-display-name u) #f)
-                                 (cons id #f))
-              
-              (parameterize ([current-user u])
-                (side-by-side-render
-                 id
-                 (list
-                  `(div ([class "student-info"])
-                        (img ([src ,(main-url page/student/photo u)]
-                              [height "80"])) 
-                        (br)
-                        ,(student-display-name u))
-                  `(p ,(question-prompt q))
-                  `(form 
-                    ([action ,k-url] [method "post"])
-                    ,@(formlet-display the-formlet)
-                    (input ([type "submit"] [value "Submit"])))))))))))
        (define ans
-         ((match (question-type q)
-            ['bool
-             answer:bool]
-            ['numeric
-             answer:numeric])
-          (current-seconds) comment
-          score))
+         (grade-question 
+          u id q i
+          #:breadcrumb 
+          (list (cons "Admin" (main-url page/admin))
+                (cons "Grading" #f)
+                (cons (student-display-name u) #f)
+                (cons id #f))
+          #:peer? #t
+          #:extra 
+          (list 
+           `(div ([class "student-info"])
+                 (img ([src ,(main-url page/student/photo u)]
+                       [height "80"])) 
+                 (br)
+                 ,(student-display-name u)))))       
 
        (write-to-file*
         ans
