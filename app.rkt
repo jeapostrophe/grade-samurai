@@ -27,13 +27,11 @@
 ;; XXX TODO Style - better colors for grades
 ;; XXX TODO style - make the question follow the scroll bar when looking at the code
 
+;; XXX TODO Unify various formlets (for the next)
 ;; XXX TODO Ask questions simultaneously and/or have better keyboarding
 
 ;; XXX TODO Enforcing optional-enable
 ;; XXX TODO Dealing with your-split (wlang1/wlang2)
-
-;; XXX TODO Adding a file without browsing first throws exception
-;; XXX TODO File with lines > 80 characters throws exception, should be an actual error page
 
 (define (format-% v)
   (format "~a%" (real->decimal-string (* 100 v) 2)))
