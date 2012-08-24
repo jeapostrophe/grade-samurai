@@ -176,10 +176,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       [authenticated?
        (redirect-to (parameterize ([current-user username]
                                    [current-user-type authenticated?])
-                      (if (or (file-exists? (user-info-path))
-                              (is-admin?))
-                        (main-url page/root)
-                        (main-url page/account)))
+                      (main-url page/root))
                    #:headers
                    (list (cookie->header
                           (make-id-cookie secret-salt
@@ -1114,6 +1111,15 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
            (format "http://www.gravatar.com/avatar/~a?s=160&d=mm"
                    (md5 (string-downcase (string-trim-both user-email))))))))
 
+  (define (user-info-complete?)
+    (match-define (student nick first last email) 
+                  (student-info (current-user)))
+    (and (not (string=? nick ""))
+         (not (string=? first ""))
+         (not (string=? last ""))
+         (not (string=? email ""))
+         (file-exists? (user-image-path))))
+
   (define (student-info u) 
     (parameterize ([current-user u])
       (define p (user-info-path))
@@ -1359,7 +1365,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          [(regexp #rx"^(.+):(.+)$" (list _ (app string->symbol kind) id))
           (parameterize ([current-user id]
                          [current-user-type kind])
-            (main-dispatch req))])]
+            (if (or (user-info-complete?)
+                    (is-admin?))
+              (main-dispatch req)
+              (page/account req)))])]
       [else (next-dispatcher)]))
 
   (serve/servlet
