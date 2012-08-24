@@ -24,11 +24,7 @@
 
 (define DEBUG? #t)
 
-;; XXX TODO Style - remove scrollbars when not needed
-;; XXX TODO Style - shrink textarea widths to not scroll
-;; XXX TODO Style - add padding in side-by-sides
-
-;; XXX TODO Experiment with more keyboard
+;; XXX TODO Experiment with more keyboard shortcuts
 
 ;; XXX TODO Enforcing optional-enable
 ;; XXX TODO Dealing with your-split (wlang1/wlang2)
@@ -780,7 +776,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                       (p "Provide evidence to justify that score.")
                       (textarea ([name "comments"]
                                  [rows "8"]
-                                 [cols "80"]))
+                                 [cols "60"]))
                       (p "(If you need to refer to line numbers, prefix a number with L. For example, use L32 or l32 to refer to line 32)"))))))))))
 
     (define bs
@@ -1055,8 +1051,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                            (input ([type "text"]
                                    [name "filename"])))
                         (p (textarea ([name "file-content"]
-                                      [rows "40"]
-                                      [cols "80"])))
+                                      [rows "20"]
+                                      [cols "60"])))
                         (p (input ([type "submit"]
                                    [value "Add File"]))))))))))))
     (define new-file-binding
