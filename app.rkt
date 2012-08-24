@@ -28,7 +28,6 @@
 ;; XXX Style - better colors for grades
 ;; XXX Show file management on the same page as view files if before deadline
 ;; XXX style - make the question follow the scroll bar when looking at the code
-;; XXX TODO Fix bread crumbs in template calls
 
 ;; XXX TODO Ask questions simultaneously and/or have better keyboarding
 ;; XXX TODO Allowing comments on self-eval answers after admin
@@ -159,7 +158,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (send/suspend
        (λ (k-url)
          (template
-          #:breadcrumb (list (cons "Login" #f))
+          #:breadcrumb (list (cons "Home" (main-url page/root))
+                             (cons "Login" #f))
           `(div ([id "login"])
                 (form ([action ,k-url] [method "post"])
                       ,@(formlet-display login-formlet)
@@ -225,9 +225,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (send/suspend
        (λ (k-url)
          (template
-          #:breadcrumb (list (cons "Home" (main-url page/main)) (cons "Account Admin" #f))
+          #:breadcrumb (list (cons "Home" (main-url page/main))
+                             (cons (current-user) #f)
+                             (cons "Details" #f))
           `(div ([id "account"])
-                (h1 ,(format "Account Admin for ~a" (current-user)))
                 (form ([action ,k-url]
                        [method "post"]
                        [enctype "multipart/form-data"])
@@ -247,18 +248,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (display-to-file* (binding:file-content photo)
                         (user-image-path)))
 
-    (redirect-to (main-url page/root)))
-
-  (define (page/student req student)
-    (cond
-      [(or (is-admin?)
-           (string=? (current-user) student))
-       (send/back
-        (template
-         #:breadcrumb (list (cons "Home" (main-url page/root)) (cons student #f))
-         `(h1 "Student Page for " ,student)))]
-      [else
-       (redirect-to (main-url page/root))]))
+    (redirect-to (main-url page/root)))  
 
   (define-values (main-dispatch main-url main-applies?)
     (dispatch-rules+applies
@@ -276,8 +266,6 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       page/logout]
      [("account")
       page/account]
-     [("student" (string-arg))
-      page/student]
      [("student" (string-arg) "photo.jpg")
       page/student/photo]
      [("assignment" (string-arg) "files" "edit")
@@ -297,7 +285,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (page/assignment/files req a-id)
     (template
-     #:breadcrumb (list (cons "Home" (main-url page/root)) (cons "View Files" #f))
+     #:breadcrumb (list (cons "Home" (main-url page/root))
+                        (cons "Assignments" #f)
+                        (cons a-id #f)
+                        (cons "Files" #f))
      (assignment-file-display a-id)))  
 
   (define default-peer
@@ -522,6 +513,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (page/assignment/self/edit req a-id)
     (define assignment (id->assignment a-id))
+    (define the-breadcrumb
+      (list (cons "Home" (main-url page/main))
+            (cons "Assignments" #f)
+            (cons a-id #f)
+            (cons "Self Evaluation" #f)
+            (cons "Edit" #f)))
     (define (ask-question q)
       (define question-formlet
         (formlet
@@ -539,8 +536,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           (λ (k-url)
             (template
              #:breadcrumb
-             (list (cons "Home" (main-url page/main))
-                   (cons "Self Evaluation" #f))
+             the-breadcrumb
              `(div ([class "eval"])
                (table
                 (tr
@@ -563,9 +559,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (if (<= (assignment-eval-secs assignment) (current-seconds))
         (send/back
          (template
-          #:breadcrumb
-          (list (cons "Home" (main-url page/main))
-                (cons "Self Evaluation" #f))
+          #:breadcrumb the-breadcrumb
           "Self evaluation past due."))
         (thunk)))
 
@@ -583,7 +577,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                (assignment-question-student-grade-path a-id i))))))
 
        (template
-        #:breadcrumb (list (cons "Home" (main-url page/main)) (cons "Self Evaluation" #f))
+        #:breadcrumb the-breadcrumb
         "Self evaluation completed."))))
 
   (define (format-answer which ans)
@@ -630,8 +624,11 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (page/assignment/self req a-id)
     (define assignment (id->assignment a-id))
     (template
-     #:breadcrumb (list (cons "Home" (main-url page/main))
-                        (cons "Self Evaluation" #f))
+     #:breadcrumb 
+     (list (cons "Home" (main-url page/main))
+            (cons "Assignments" #f)
+            (cons a-id #f)
+            (cons "Self Evaluation" #f))
      `(div ([class "eval"])
        (table
         (tr
@@ -660,14 +657,17 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (page/assignment/peer req a-id)
     (define assignment (id->assignment a-id))
     (define peer (assignment-peer a-id))
+    (define the-breadcrumb
+      (list (cons "Home" (main-url page/main))
+            (cons "Assignments" #f)
+            (cons a-id #f)
+            (cons "Peer Evaluation" #f)))
     (if (equal? default-peer peer)
       (template
-       #:breadcrumb (list (cons "Home" (main-url page/main))
-                          (cons "Peer Evaluation" #f))
+       #:breadcrumb the-breadcrumb
        `(div "Your peer has not been assigned."))
       (template
-       #:breadcrumb (list (cons "Home" (main-url page/main))
-                          (cons "Peer Evaluation" #f))
+       #:breadcrumb the-breadcrumb
        `(div
          (table
           (tr
@@ -697,6 +697,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (page/assignment/peer/edit req a-id)
     (define assignment (id->assignment a-id))
+    (define the-breadcrumb
+      (list (cons "Home" (main-url page/main))
+            (cons "Assignments" #f)
+            (cons a-id #f)
+            (cons "Peer Evaluation" #f)
+            (cons "Edit" #f)))
     (define (pick-a-person)
       (define student-ids (users))
       (define finished-self-eval
@@ -725,8 +731,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         [(list)
          (send/back
           (template
-           #:breadcrumb (list (cons "Home" (main-url page/main)) 
-                              (cons "Peer Evaluation" #f))
+           #:breadcrumb the-breadcrumb
            "Peer evaluation is impossible, as no peers are available."))]))
 
     (define peer-id
@@ -738,8 +743,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (if (<= (assignment-peer-secs assignment) (current-seconds))
         (send/back
          (template
-          #:breadcrumb (list (cons "Home" (main-url page/main)) 
-                             (cons "Peer Evaluation" #f))
+          #:breadcrumb the-breadcrumb
           "Peer evaluation past due."))
         (thunk)))
 
@@ -767,8 +771,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                (assignment-question-student-grade-path/peer a-id i))))))
 
        (template
-        #:breadcrumb (list (cons "Home" (main-url page/main)) 
-                           (cons "Peer Evaluation" #f))
+        #:breadcrumb the-breadcrumb
         "Peer evaluation completed."))))
 
   (define (grade-question stu a-id question q-self-eval)
@@ -793,9 +796,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         (λ (k-url)
           (template
            #:breadcrumb (list (cons "Home" (main-url page/root)) 
-                              (if (is-admin?)
-                                  (cons "Grade" #f)
-                                  (cons "Self Evaluation" #f)))
+                              (cons "Assignments" #f)
+                              (cons a-id #f)
+                              (cons "Peer Evaluation" #f)
+                              (cons "Edit" #f))
            `(div
              (table
               (tr
@@ -968,7 +972,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                             (assignment-id a)))))))
     (send/back
      (template
-      #:breadcrumb (list (cons "Student Main Page" #f))
+      #:breadcrumb (list (cons "Home" #f))
       ;; TODO
       `(div ([id "class-score"])
             (table (tr (th "Mininum Final Grade")
@@ -1006,7 +1010,11 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           (define files (assignment-files a-id))
           (template
            #:breadcrumb (list (cons "Home" (main-url page/main)) 
-                              (cons (format "Manage Files - ~a" a-id) #f))
+                              (cons "Assignments" #f)
+                              (cons a-id #f)
+                              ;; XXX
+                              (cons "Files" #f)
+                              (cons "Edit" #f))
            `(p ([class "notice"])
                ,(format "File Management for ~a ~a" a-id
                         (if (seconds-left . < . 0)
@@ -1093,7 +1101,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (unless (is-admin?)
       (send/back
        (template
-        #:breadcrumb (list (cons "Home" (main-url page/main)) (cons "Grade Next" #f))
+        #:breadcrumb (list (cons "Admin" (main-url page/main))
+                           (cons "Grading" #f))
         "Only the admin can view this page.")))
     ;; XXX Mimic this structure for students self & peer
     (match
@@ -1146,7 +1155,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                ;; XXX displays the current user wrong because of the
                ;; parameterize above
                (template
-                #:breadcrumb (list (cons "Admin" (main-url page/admin)) (cons "Grade" #f))
+                #:breadcrumb (list (cons "Admin" (main-url page/admin))
+                                   (cons "Grading" #f)
+                                   (cons u #f)
+                                   (cons a-id #f))
                 `(div
                   (img ([src ,(main-url page/student/photo (current-user))]
                            [width "80"] [height "80"]))
@@ -1181,8 +1193,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       [#f
        (send/back
         (template
-         #:breadcrumb (list (cons "Home" (main-url page/admin)) 
-                            (cons "Grade Next" #f))
+         #:breadcrumb (list (cons "Admin" (main-url page/admin)) 
+                            (cons "Grading" #f))
          "All grading is done! Great!"))]))
 
   (define (page/admin req)
@@ -1191,7 +1203,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
     (send/back
      (template
-      #:breadcrumb (list (cons "Home" #f))
+      #:breadcrumb (list (cons "Admin" #f))
       `(a ([href ,(main-url page/admin/grade-next)]) "Grade")
       `(table
         (thead
