@@ -35,11 +35,9 @@
 ;; XXX TODO Enforcing optional-enable
 ;; XXX TODO Dealing with your-split (wlang1/wlang2)
 
-;; XXX TODO make edit my info page with link when I click on my username
 ;; XXX TODO Adding a file without browsing first throws exception
 ;; XXX TODO File with lines > 80 characters throws exception, should be an actual error page
 ;; XXX TODO Add assignment breadcrumbs that aren't links
-;; XXX TODO Photos with different aspect ratios are squished
 ;; XXX TODO Admin and Self eval detail pages don't show peer eval
 ;; XXX TODO Nowhere to see my grade on an assignment
 ;; XXX TODO Peer eval wording is weird
@@ -236,7 +234,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                       (p "Instead of this: "
                          (img
                           ([src ,(main-url page/student/photo (current-user))]
-                           [width "160"] [height "160"])))
+                           [height "160"])))
                       (input ([type "submit"] [value "Update Info"]))))))))
 
     (define-values (first-name last-name nick-name email photo)
@@ -1165,7 +1163,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                    (cons id #f))
                 `(div
                   (img ([src ,(main-url page/student/photo (current-user))]
-                           [width "80"] [height "80"]))
+                           [height "80"]))
                   (p ,(format "~a ~a" 
                               (student-nickname student-info)
                               (student-lastname student-info)))
