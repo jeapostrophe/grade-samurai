@@ -24,9 +24,10 @@
 
 (define DEBUG? #t)
 
-;; XXX TODO style - comments always show something
+;; XXX TODO Style - remove scrollbars when not needed
+;; XXX TODO Style - shrink textarea widths to not scroll
+;; XXX TODO Style - add padding in side-by-sides
 
-;; XXX TODO Unify various formlets (for the next)
 ;; XXX TODO Ask questions simultaneously and/or have better keyboarding
 
 ;; XXX TODO Enforcing optional-enable
