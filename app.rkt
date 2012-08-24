@@ -469,12 +469,19 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        (* (+ ow nw) self-pts))))
 
   (define (assignment-file-display a-id)
+    (define-values (html end-line-number)
+      (for/fold ([html empty]
+                 [line-offset 1])
+                ([file (in-list (assignment-files a-id))])
+        (define-values (table new-offset) 
+          (file->html-table 
+           a-id 
+           (build-path (assignment-file-path a-id) file)
+           line-offset))
+        (values (append html (list table)) new-offset)))
+    
     `(div ([id "files"])
-          ,@(map
-             (λ(file)
-               ((curry file->html-table a-id)
-                (build-path (assignment-file-path a-id) file)))
-             (assignment-files a-id))))
+          ,@html))
 
   (define (format-grade default-grade)
     (define g (compute-grade default-grade))
@@ -566,6 +573,28 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         "Self evaluation completed."))))
 
   (define (format-answer which ans)
+    #;((printf "~a\n" (string->linked-html "on l32 and L3 is"))
+    (printf "~a" `(p "on " (a ([href "#L32"]) "l32") " and "
+                     (a ([href "#L3"]) "L3") " is"))
+    '((3 . 6)(11 . 13))
+    `(p ,(substring s 0 3) (a ([href ,(format "#~a" (upcase (substring s 3 6)))]) ,(substring s 3 6)) 
+        ,(substring s 6 11) (a ([href ,(format "#~a" (upcase (substring s 11 13)))]) ,(substring s 11 13))
+        ,(substring s 13 (length s))))
+    (define (string->linked-html s)
+      (define positions
+        (regexp-match-positions* #px"[l|L]\\d+" s))
+      (define-values (html pos)
+        (for/fold ([html empty] [pos 0])
+          ([pos-pair positions])
+          (values (append html 
+                          (list 
+                           (substring s pos (car pos-pair))
+                           `(a ([href ,(format "#~a" (string-upcase (substring s 
+                                                                        (car pos-pair)
+                                                                        (cdr pos-pair))))])
+                               ,(substring s (car pos-pair) (cdr pos-pair)))))
+                  (cdr pos-pair))))
+      `(p ,@html ,(substring s pos (string-length s))))
     (cond
       [ans
        `(div ([class ,(format "answer ~a" which)])
@@ -579,7 +608,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                            [(answer:numeric _ _ value)
                             (real->decimal-string value 4)])))
              ;; XXX add line links
-             (pre ,(answer-comments ans)))]
+             ,(string->linked-html (answer-comments ans)))]
       [else
        `(div ([class ,(format "answer incomplete ~a" which)])
              (p ,(format "Your ~a evaluation is not completed." which)))]))
@@ -768,37 +797,40 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
      (current-seconds) comment
      score))
 
-  (define (file->html-table a-id file)
+  (define (file->html-table a-id file-path line-offset)
     (define file-lines
-      (string-split (bytes->string/utf-8 (file->bytes file))
+      (string-split (bytes->string/utf-8 (file->bytes file-path))
                     #px"\r\n?|\n"
                     #:trim? #f))
     (define (line->line-content-div line line-num)
-      `(div ([id ,(format "~aLC~a" file line-num)][class "line"])
+      `(div ([id ,(format "LC~a" line-num)][class "line"])
             ,((λ (l)(if (string=? "" l) '(br) l)) line)))
 
-    `(div ([class "file"])
-          (div ([class "meta"]) ,(format "~a" (path->last-part file)))
-          (div ([class "data type-text"])
-               (table ([class "lines"][cellspacing "0"][cellpadding "0"])
-                      (tbody
-                       (tr
-                        (td
-                         (pre ([class "line_numbers"]
-                               [style "margin: 0pt; padding-right: 10px;"])
-                              ,@(map
-                                 (λ (n)
-                                   `(span ([id ,(format "~aL~a" file n)]
-                                           [rel ,(format "#~aL~a" file n)])
-                                          ,(number->string n) (br)))
-                                 (build-list (length file-lines) add1))))
-                        (td ([width "100%"])
-                            (div ([class "highlight"])
-                                 (pre
-                                  ,@(map line->line-content-div file-lines
-                                         (build-list (length file-lines)
-                                                     add1)))))))))))
-
+    (values 
+     `(div ([class "file"])
+           (div ([class "meta"]) ,(format "~a" (path->last-part file-path)))
+           (div ([class "data type-text"])
+                (table ([class "lines"][cellspacing "0"][cellpadding "0"])
+                       (tbody
+                        (tr
+                         (td
+                          (pre ([class "line_numbers"]
+                                [style "margin: 0pt; padding-right: 10px;"])
+                               ,@(map
+                                  (λ (n)
+                                    `(span ([id ,(format "L~a" n)]
+                                            [rel ,(format "#L~a" n)])
+                                           ,(number->string n) (br)))
+                                  (build-list (length file-lines) 
+                                              (curry + line-offset)))))
+                         (td ([width "100%"])
+                             (div ([class "highlight"])
+                                  (pre
+                                   ,@(map line->line-content-div file-lines
+                                          (build-list (length file-lines)
+                                                      (curry + line-offset)))))))))))
+     (+ line-offset (length file-lines))))
+    
   (define (page/logout req)
     (redirect-to
      (main-url page/root)
