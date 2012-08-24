@@ -1159,7 +1159,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
              (template
               #:breadcrumb (list (cons "Admin" (main-url page/admin))
                                  (cons "Grading" #f)
-                                 (cons u #f)
+                                 (cons (student-display-name u) #f)
                                  (cons id #f))
               `(div ([class "eval"])            
                 (table 
