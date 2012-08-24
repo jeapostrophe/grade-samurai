@@ -39,6 +39,8 @@
 ;; XXX TODO Adding a file without browsing first throws exception
 ;; XXX TODO File with lines > 80 characters throws exception, should be an actual error page
 
+;; XXX Images that are missing show as broken links rather than gravatar thing OR ensure that students cannot do anything until account is ready
+
 (define (format-% v)
   (format "~a%" (real->decimal-string (* 100 v) 2)))
 
@@ -1131,24 +1133,27 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                     (prof-eval-completed? a)))
           (cons a u))
       [(cons a u)
-       (parameterize ([current-user u])
-         (define id (assignment-id a))
-         (define qs (assignment-questions a))
-         (define student-info (file->value (user-info-path)))
-         (match-define
-          (cons q i)
-          (for/or ([q (in-list qs)]
-                   [i (in-naturals)]
-                   #:unless
-                   (file-exists?
-                    (assignment-question-prof-grade-path id i)))
-            (cons q i)))
-         
-         (define score-formlet
-           (match (question-type q)
-             ['numeric numeric-formlet]
-             ['bool boolean-formlet]))
-         (define the-formlet
+       (define id (assignment-id a))
+       (define qs (assignment-questions a))
+       (define student-info 
+         (parameterize ([current-user u])
+           (file->value (user-info-path))))
+       (match-define
+        (cons q i)
+        (for/or ([q (in-list qs)]
+                 [i (in-naturals)]
+                 #:unless
+                 (file-exists?       
+                  (parameterize ([current-user u])
+                    (assignment-question-prof-grade-path id i))))
+          (cons q i)))
+       
+       (define score-formlet
+         (match (question-type q)
+           ['numeric numeric-formlet]
+           ['bool boolean-formlet]))
+       (define the-formlet
+         (parameterize ([current-user u])
            (formlet
             (div
              ,(format-answer 
@@ -1160,51 +1165,51 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
              (p "What do you think they earned?")
              ,{score-formlet . => . prof-score}
              ,{evidence-formlet . => . comment})
-            (values prof-score comment)))
+            (values prof-score comment))))
 
-         (define-values (score comment)
-           (formlet-process
-            the-formlet
-            (send/suspend
-             (λ (k-url)
-               ;; XXX displays the current user wrong because of the
-               ;; parameterize above
-               (template
-                #:breadcrumb (list (cons "Admin" (main-url page/admin))
-                                   (cons "Grading" #f)
-                                   (cons u #f)
-                                   (cons id #f))
-                `(div
-                  (img ([src ,(main-url page/student/photo (current-user))]
-                           [height "80"]))
-                  (p ,(format "~a ~a" 
-                              (student-nickname student-info)
-                              (student-lastname student-info)))
-                  (table
-                   (tr
-                    (td
-                     ,(assignment-file-display id))
-                    (td
-                     (p ,(question-prompt q))
-                     (form 
-                      ([action ,k-url] [method "post"])
-                      ,@(formlet-display the-formlet)
-                      (input ([type "submit"] [value "Submit"]))))))))))))
-         (define ans
-           ((match (question-type q)
-              ['bool
-               answer:bool]
-              ['numeric
-               answer:numeric])
-            (current-seconds) comment
-            score))
+       (define-values (score comment)
+         (formlet-process
+          the-formlet
+          (send/suspend
+           (λ (k-url)
+             (template
+              #:breadcrumb (list (cons "Admin" (main-url page/admin))
+                                 (cons "Grading" #f)
+                                 (cons u #f)
+                                 (cons id #f))
+              `(div
+                (img ([src ,(main-url page/student/photo u)]
+                      [height "80"]))
+                (p ,(format "~a ~a" 
+                            (student-nickname student-info)
+                            (student-lastname student-info)))
+                (table
+                 (tr
+                  (td
+                   ,(parameterize ([current-user u])
+                      (assignment-file-display id))
+                   (td
+                    (p ,(question-prompt q))
+                    (form 
+                     ([action ,k-url] [method "post"])
+                     ,@(formlet-display the-formlet)
+                     (input ([type "submit"] [value "Submit"])))))))))))))
+       (define ans
+         ((match (question-type q)
+            ['bool
+             answer:bool]
+            ['numeric
+             answer:numeric])
+          (current-seconds) comment
+          score))
 
-         (write-to-file*
-          ans
-          (assignment-question-prof-grade-path id i))
+       (write-to-file*
+        ans
+        (parameterize ([current-user u])
+          (assignment-question-prof-grade-path id i)))
 
-         (redirect-to
-          (main-url page/admin/grade-next)))]
+       (redirect-to
+        (main-url page/admin/grade-next))]
       [#f
        (send/back
         (template
