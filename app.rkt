@@ -986,7 +986,6 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
            #:breadcrumb (list (cons "Home" (main-url page/main)) 
                               (cons "Assignments" #f)
                               (cons a-id #f)
-                              ;; XXX
                               (cons "Files" #f))
            `(div ([class "eval"])
                  (table
@@ -1222,7 +1221,6 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          ,@(for/list ([u (in-list (sorted-users))])
              (parameterize ([current-user u])
                `(tr 
-                 ;; XXX display nicely
                  (td ,(student-display-name u))
                  (td ,(format-grade 0))
                  (td ,(format-grade 1))
