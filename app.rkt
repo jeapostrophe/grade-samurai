@@ -592,11 +592,14 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             html 
             (list 
              (substring s pos (car pos-pair))
-             `(a ([href 
-                   ,(format "#~a" 
-                            (string-upcase (substring s 
-                                                      (car pos-pair)
-                                                      (cdr pos-pair))))])
+             `(a ([class "line-link"][href 
+                   ,(format "#LC~a" 
+                            (substring
+                             (string-upcase 
+                              (substring s 
+                                         (car pos-pair)
+                                         (cdr pos-pair)))
+                             1))])
                  ,(substring s (car pos-pair) (cdr pos-pair)))))
                   (cdr pos-pair))))
       `(p ,@html ,(substring s pos (string-length s))))
@@ -612,7 +615,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                               "No")]
                            [(answer:numeric _ _ value)
                             (real->decimal-string value 4)])))
-             ;; XXX add line links
+             (script ([src "/line-highlight.js"][type "text/javascript"]) " ")
              ,(string->linked-html (answer-comments ans)))]
       [else
        `(div ([class ,(format "answer incomplete ~a" which)])
@@ -812,7 +815,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                     #px"\r\n?|\n"
                     #:trim? #f))
     (define (line->line-content-div line line-num)
-      `(div ([id ,(format "LC~a" line-num)][class "line"])
+      `(div ([id ,(format "LC~a" line-num)]
+             [class "line"]
+             [rel ,(format "#LC~a" line-num)])
             ,((λ (l)(if (string=? "" l) '(br) l)) line)))
 
     (values 
@@ -829,8 +834,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                       [style "margin: 0pt; padding-right: 10px;"])
                      ,@(map
                         (λ (n)
-                          `(span ([id ,(format "L~a" n)]
-                                  [rel ,(format "#L~a" n)])
+                          `(span ([id ,(format "L~a" n)])
                                  ,(number->string n) (br)))
                         (build-list (length file-lines) 
                                     (curry + line-offset)))))
@@ -1040,6 +1044,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (response/xexpr
      `(html (head (title ,@(add-between (map car bc) " > "))
                   #;(script ([src "/sorttable.js"]) " ")
+                  (script ([src "https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"]) " ")
                   (link ([rel "stylesheet"]
                          [type "text/css"]
                          [href "/style.css"])))
