@@ -33,7 +33,6 @@
 ;; XXX TODO Enforcing optional-enable
 ;; XXX TODO Dealing with your-split (wlang1/wlang2)
 
-;; XXX TODO textarea file submission
 ;; XXX TODO Adding a file without browsing first throws exception
 ;; XXX TODO File with lines > 80 characters throws exception, should be an actual error page
 
@@ -961,8 +960,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             ,@(map render-assignment past)))))
 
   (define (page/assignment/files/delete req a-id file-to-delete)
-    (define assignment
-      (findf (λ (a) (string=? a-id (assignment-id a))) assignments))
+    (define assignment (id->assignment a-id))
     (when (< (current-seconds) (assignment-due-secs assignment))
       (define file-path
         (build-path (assignment-file-path a-id) file-to-delete))
@@ -972,57 +970,79 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (page/assignment/files req a-id)
     (define assignment (id->assignment a-id))
-    (define (extract-binding:file req)
-      (bindings-assq #"new-file" (request-bindings/raw req)))
+    (define new-file-request
+      (send/suspend
+       (λ (k-url)
+         (define seconds-left
+           (- (assignment-due-secs assignment) (current-seconds)))
+         (define files (assignment-files a-id))
+         (define closed? (< seconds-left 0))
+         (template
+          #:breadcrumb (list (cons "Home" (main-url page/main)) 
+                             (cons "Assignments" #f)
+                             (cons a-id #f)
+                             (cons "Files" #f))
+          `(div ([class "eval"])
+                (table
+                 (tr
+                  (td ([class "files-cell"])
+                      ,(assignment-file-display a-id))
+                  (td ([class "prompt-cell"])
+                      (p ([class "notice"])
+                         ,(format "File Management for ~a ~a" a-id
+                                  (if closed?
+                                    "is closed"
+                                    (format "closes in ~a" 
+                                            (secs->time-text seconds-left)))))
+                      ,(if (empty? files)
+                         `(p ([class "notice"]) "No files uploaded yet for this assignment")
+                         `(table ([class "upload-table"])
+                                 (tr (th "Filename") (th "Delete?"))
+                                 ,@(map
+                                    (λ (filename)
+                                      `(tr (td ,filename)
+                                           (td ,(if closed? 
+                                                  "X"
+                                                  `(a ([href ,(main-url 
+                                                               page/assignment/files/delete a-id
+                                                               filename)])
+                                                      "X")))))
+                                    files)))
+                      ;; XXX Add a textarea box
+                      ,@(if closed?
+                          empty
+                          (list 
+                           `(form ([action ,k-url]
+                                   [method "post"]
+                                   [enctype "multipart/form-data"])
+                                  (input ([type "file"]
+                                          [name "new-file"]))
+                                  (input ([type "submit"]
+                                          [value "Upload File"])))
+                           `(br)
+                           `(form ([action ,k-url]
+                                   [method "post"])
+                                  (input ([type "text"]
+                                          [name "filename"]))
+                                  (textarea ([name "file-content"]
+                                             [rows "40"]
+                                             [cols "80"]))
+                                  (input ([type "submit"]
+                                          [value "Add File"])))))))))))))
     (define new-file-binding
-      (extract-binding:file
-       (send/suspend
-        (λ (k-url)
-          (define seconds-left
-            (- (assignment-due-secs assignment) (current-seconds)))
-          (define files (assignment-files a-id))
-          (define closed? (< seconds-left 0))
-          (template
-           #:breadcrumb (list (cons "Home" (main-url page/main)) 
-                              (cons "Assignments" #f)
-                              (cons a-id #f)
-                              (cons "Files" #f))
-           `(div ([class "eval"])
-                 (table
-                  (tr
-                   (td ([class "files-cell"])
-                       ,(assignment-file-display a-id))
-                   (td ([class "prompt-cell"])
-                       (p ([class "notice"])
-                          ,(format "File Management for ~a ~a" a-id
-                                   (if closed?
-                                       "is closed"
-                                       (format "closes in ~a" 
-                                               (secs->time-text seconds-left)))))
-                       ,(if (empty? files)
-                            `(p ([class "notice"]) "No files uploaded yet for this assignment")
-                            `(table ([class "upload-table"])
-                                    (tr (th "Filename") (th "Delete?"))
-                                    ,@(map
-                                       (λ (filename)
-                                         `(tr (td ,filename)
-                                              (td ,(if closed? 
-                                                       "X"
-                                                       `(a ([href ,(main-url 
-                                                                   page/assignment/files/delete a-id
-                                                                   filename)])
-                                                          "X")))))
-                                       files)))
-                       ;; XXX Add a textarea box
-                       ,(if closed?
-                            ""
-                            `(form ([action ,k-url]
-                                    [method "post"]
-                                    [enctype "multipart/form-data"])
-                                   (input ([type "file"]
-                                           [name "new-file"]))
-                                   (input ([type "submit"]
-                                           [value "Add File"])))))))))))))
+      (cond
+        [(bindings-assq #"new-file" 
+                        (request-bindings/raw new-file-request))
+         => (λ (x) x)]
+        [else
+         (define bs (request-bindings/raw new-file-request))
+         (binding:file
+          #"new-file"          
+          (binding:form-value 
+            (bindings-assq #"filename" bs))
+          empty
+          (binding:form-value 
+            (bindings-assq #"file-content" bs)))]))
     (define file-content (binding:file-content new-file-binding))
     (when (contains-greater-than-80-char-line? file-content)
       (error 'upload-file
