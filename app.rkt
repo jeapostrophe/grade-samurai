@@ -41,8 +41,6 @@
 ;; XXX TODO Adding a file without browsing first throws exception
 ;; XXX TODO File with lines > 80 characters throws exception, should be an actual error page
 
-;; XXX Images that are missing show as broken links rather than gravatar thing OR ensure that students cannot do anything until account is ready
-
 (define (format-% v)
   (format "~a%" (real->decimal-string (* 100 v) 2)))
 
