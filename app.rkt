@@ -25,7 +25,7 @@
 (define DEBUG? #t)
 
 ;; XXX TODO Style - better colors for grades
-;; XXX TODO style - unify sidy-by-side and use css to display properly
+;; XXX TODO style - use css to display properly
 ;; XXX TODO style - comments always show something and some pre formatted
 
 ;; XXX TODO Unify various formlets (for the next)
@@ -1025,18 +1025,20 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                          [enctype "multipart/form-data"])
                         (input ([type "file"]
                                 [name "new-file"]))
+                        nbsp
                         (input ([type "submit"]
                                 [value "Upload File"])))
                  `(br)
                  `(form ([action ,k-url]
                          [method "post"])
-                        (input ([type "text"]
-                                [name "filename"]))
-                        (textarea ([name "file-content"]
-                                   [rows "40"]
-                                   [cols "80"]))
-                        (input ([type "submit"]
-                                [value "Add File"])))))))))))
+                        (p "Filename: "
+                           (input ([type "text"]
+                                   [name "filename"])))
+                        (p (textarea ([name "file-content"]
+                                      [rows "40"]
+                                      [cols "80"])))
+                        (p (input ([type "submit"]
+                                   [value "Add File"]))))))))))))
     (define new-file-binding
       (cond
         [(bindings-assq #"new-file" 
@@ -1074,7 +1076,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
      `(html 
        (head (title ,@(add-between (map car bc) " > "))
              #;(script ([src "/sorttable.js"]) " ")
-             (script ([src jquery-url]) " ")
+             (script ([src ,jquery-url]) " ")
              (link ([rel "stylesheet"]
                     [type "text/css"]
                     [href "/style.css"])))
