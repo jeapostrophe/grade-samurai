@@ -24,9 +24,7 @@
 
 (define DEBUG? #t)
 
-;; XXX TODO Style - better colors for grades
-;; XXX TODO style - use css to display properly
-;; XXX TODO style - comments always show something and some pre formatted
+;; XXX TODO style - comments always show something
 
 ;; XXX TODO Unify various formlets (for the next)
 ;; XXX TODO Ask questions simultaneously and/or have better keyboarding
@@ -777,17 +775,14 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                               (cons a-id #f)
                               (cons "Peer Evaluation" #f)
                               (cons "Edit" #f))
-           `(div
-             (table
-              (tr
-               (td
-                ,(parameterize ([current-user stu])
-                   (assignment-file-display a-id)))
-               (td
-                (p ,(question-prompt question))
-                (form ([action ,k-url] [method "post"])
+           (parameterize ([current-user stu])
+             (side-by-side-render
+              a-id
+              (list 
+               `(p ,(question-prompt question))
+               `(form ([action ,k-url] [method "post"])
                       ,@(formlet-display the-formlet)
-                      (input ([type "submit"] [value "Submit"]))))))))))))
+                      (input ([type "submit"] [value "Submit"])))))))))))
     ((match (question-type question)
        ['bool
         answer:bool]
