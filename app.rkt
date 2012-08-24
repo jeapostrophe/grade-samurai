@@ -37,7 +37,6 @@
 
 ;; XXX TODO Adding a file without browsing first throws exception
 ;; XXX TODO File with lines > 80 characters throws exception, should be an actual error page
-;; XXX TODO Add assignment breadcrumbs that aren't links
 ;; XXX TODO Admin and Self eval detail pages don't show peer eval
 ;; XXX TODO Nowhere to see my grade on an assignment
 ;; XXX TODO Peer eval wording is weird
