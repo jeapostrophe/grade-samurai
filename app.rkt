@@ -563,29 +563,31 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         #:breadcrumb the-breadcrumb
         "Self evaluation completed."))))
 
-  (define (format-answer which ans)
-    (define (string->linked-html s)
-      (define positions
-        (regexp-match-positions* #px"[l|L]\\d+" s))
-      (define-values (html pos)
-        (for/fold ([html empty] [pos 0])
+  (define (string->linked-html s)
+    (define positions
+      (regexp-match-positions* #px"[l|L]\\d+" s))
+    (define-values (html pos)
+      (for/fold ([html empty] [pos 0])
           ([pos-pair positions])
-          (values 
-           (append 
-            html 
-            (list 
-             (substring s pos (car pos-pair))
-             `(a ([class "line-link"][href 
-                   ,(format "#LC~a" 
-                            (substring
-                             (string-upcase 
-                              (substring s 
-                                         (car pos-pair)
-                                         (cdr pos-pair)))
-                             1))])
-                 ,(substring s (car pos-pair) (cdr pos-pair)))))
-                  (cdr pos-pair))))
-      `(p ,@html ,(substring s pos (string-length s))))
+        (values 
+         (append 
+          html 
+          (list 
+           (substring s pos (car pos-pair))
+           `(a ([class "line-link"]
+                [href 
+                 ,(format "#LC~a" 
+                          (substring
+                           (string-upcase 
+                            (substring s 
+                                       (car pos-pair)
+                                       (cdr pos-pair)))
+                           1))])
+               ,(substring s (car pos-pair) (cdr pos-pair)))))
+         (cdr pos-pair))))
+    `(p ,@html ,(substring s pos (string-length s))))
+
+  (define (format-answer which ans)    
     (cond
       [ans
        `(div ([class ,(format "answer ~a" which)])
@@ -598,7 +600,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                               "No")]
                            [(answer:numeric _ _ value)
                             (format-% value)])))
-             (script ([src "/line-highlight.js"][type "text/javascript"]) " ")
+             (script ([src "/line-highlight.js"]
+                      [type "text/javascript"]) " ")
              ,(string->linked-html (answer-comments ans)))]
       [else
        `(div ([class ,(format "answer incomplete ~a" which)])
@@ -1277,70 +1280,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           "BYU PLT."
           (br)
           (span ([id "timestamp"]) 
-                ,(date->string (seconds->date (current-seconds)) #t))))
-
-  (define (tabs header . the-tabs)
-    (define found-selected? #f)
-    (define tab-seq
-      (build-vector
-       (/ (length the-tabs) 2)
-       (lambda (i)
-         (define id (symbol->string (gensym)))
-         (define label (list-ref the-tabs (* 2 i)))
-         (define body (list-ref the-tabs (add1 (* 2 i))))
-         (define no-content?
-           (and (string? body)
-                (string=? "" body)))
-         (define selected?
-           (and (not found-selected?)
-                (not no-content?)))
-         (when selected?
-           (set! found-selected? #t))
-         (vector id selected? no-content? label body))))
-    `(div
-      ([class "tabbed"])
-      (div
-       ([class "tab-header"])
-       (div ([class "tab-uheader"]) ,header)
-       (ul
-        ,@(for/list ([v (in-vector tab-seq)])
-            (match-define
-             (vector id selected? no-content? label body)
-             v)
-            (define direct-link
-              (match body
-                [(cons #f url) url]
-                [_ #f]))
-            `(li ([id ,(format "li~a" id)]
-                  ,@(if selected? `([class "tab-selected"]) empty))
-                 ,(cond
-                    [no-content?
-                     label]
-                    [direct-link
-                     `(a ([href ,direct-link]) ,label)]
-                    [else
-                     `(a ([href
-                           ,(format
-                             "javascript:~a~a;"
-                             (for/fold ([s ""])
-                                 ([v (in-vector tab-seq)])
-                               (match-define
-                                (vector id selected? no-content? label _) v)
-                               (format "ToggleOff(~S);~a" id s))
-                             (format "ToggleOn(~S)" id))])
-                         ,label)])))))
-      ,@(for/list ([v (in-vector tab-seq)])
-          (match-define (vector id selected? no-content? _ body) v)
-          (define direct-link
-            (match body
-              [(cons #f url) url]
-              [_ #f]))
-          `(div ([id ,id]
-                 [style ,(if selected?
-                           "display: block"
-                           "display: none")]
-                 [class "tab-content"])
-                ,(if direct-link "" body)))))
+                ,(date->string (seconds->date (current-seconds)) #t))))  
 
   (define (require-login-then-dispatch req)
     (cond
