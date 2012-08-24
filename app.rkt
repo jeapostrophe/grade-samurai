@@ -25,7 +25,8 @@
 (define DEBUG? #t)
 
 ;; XXX TODO Style - better colors for grades
-;; XXX TODO style - make the question follow the scroll bar when looking at the code
+;; XXX TODO style - unify sidy-by-side and use css to display properly
+;; XXX TODO style - comments always show something and some pre formatted
 
 ;; XXX TODO Unify various formlets (for the next)
 ;; XXX TODO Ask questions simultaneously and/or have better keyboarding
