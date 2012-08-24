@@ -22,7 +22,7 @@
          "model.rkt"
          "../m8b/id-cookie.rkt")
 
-(define DEBUG? #t)
+(define DEBUG? #f)
 
 ;; XXX TODO Experiment with more keyboard shortcuts
 

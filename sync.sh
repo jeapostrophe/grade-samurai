@@ -1,3 +1,3 @@
 #!/bin/bash
 
-rsync -h --progress -a --delete courses plt-etc:local/grade-samurai/
+rsync -h --progress -a --delete -L --exclude db --exclude compiled courses plt-etc:local/grade-samurai/
