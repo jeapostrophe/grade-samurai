@@ -1158,7 +1158,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                 #:breadcrumb (list (cons "Admin" (main-url page/admin))
                                    (cons "Grading" #f)
                                    (cons u #f)
-                                   (cons a-id #f))
+                                   (cons id #f))
                 `(div
                   (img ([src ,(main-url page/student/photo (current-user))]
                            [width "80"] [height "80"]))
