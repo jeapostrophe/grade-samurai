@@ -122,7 +122,7 @@ div.side-by-side div.right {
     overflow-y: scroll;
 }
 
-div.side-by-side div.right div.answers {
+div.answers {
     margin-bottom: 1em;
     border: 1px dashed;
     border-radius: 5px;
@@ -132,7 +132,7 @@ div.side-by-side div.right div.answers {
     width: 95%;
 }
 
-div.side-by-side div.right div.answers p span.weight {
+div.answers p span.weight {
     margin-right: 0.5em;
     background: #eceeec;
 }
@@ -157,6 +157,14 @@ table.upload-table tr td {
 
 .highlight {
     background-color: yellow;
+}
+
+p.comment {
+    padding: 1em;
+    background-color: #eceeec;
+    border-radius: 0.5em;
+    right: 0;
+    margin-right: 1em;
 }
 
 #grade-button {

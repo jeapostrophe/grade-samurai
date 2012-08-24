@@ -595,7 +595,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                            1))])
                ,(substring s (car pos-pair) (cdr pos-pair)))))
          (cdr pos-pair))))
-    `(p ,@html ,(substring s pos (string-length s))))
+    `(p ([class "comment"])
+      ,@html ,(substring s pos (string-length s))))
 
   (define (format-answer which ans)    
     (cond
