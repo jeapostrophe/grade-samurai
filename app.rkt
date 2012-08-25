@@ -24,6 +24,12 @@
 
 (define DEBUG? #f)
 
+;; XXX TODO After performing a self-evaluation, the link should either
+;; immediately change to "view self evaluation", or else it should be
+;; editable. It is unintuitive to leave the "do self eval" link
+;; without allowing the user to actually do it when clicked. The same
+;; goes for Grade a peer.
+
 ;; XXX TODO Experiment with more keyboard shortcuts
 
 ;; XXX TODO Enforcing optional-enable
