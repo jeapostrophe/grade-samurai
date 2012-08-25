@@ -1302,6 +1302,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
    #:port port
    #:listen-ip #f
    #:command-line? #t
+   #:ssl? #t
+   #:ssl-cert (build-path db-path 'up "server-cert.pem")
+   #:ssl-key (build-path db-path 'up "private-key.pem")
    #:quit? #f
    #:launch-browser? #f
    #:extra-files-paths (list (build-path source-dir "static"))
