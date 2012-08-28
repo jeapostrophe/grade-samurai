@@ -32,6 +32,8 @@
 
 ;; XXX TODO Experiment with more keyboard shortcuts
 
+;; XXX TODO Add class average statistics on admin and student
+
 ;; XXX TODO Enforcing optional-enable
 ;; XXX TODO Dealing with your-split (wlang1/wlang2)
 
@@ -1097,7 +1099,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (response/xexpr
      `(html 
        (head (title ,@(add-between (map car bc) " > "))
-             #;(script ([src "/sorttable.js"]) " ")
+             (script ([src "/sorttable.js"]) " ")
              (script ([src ,jquery-url]) " ")
              (link ([rel "stylesheet"]
                     [type "text/css"]
@@ -1231,7 +1233,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       #:breadcrumb (list (cons "Admin" #f))
       `(div ([id "grade-button"])
             (a ([href ,(main-url page/admin/grade-next)]) "Grade"))
-      `(table ([id "grades"])
+      `(table ([id "grades sortable"])
         (thead
          (tr (th "Student")
              (th "Min")
@@ -1241,7 +1243,11 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          ,@(for/list ([u (in-list (sorted-users))])
              (parameterize ([current-user u])
                `(tr 
-                 (td ,(student-display-name u))
+                 (td (img
+                      ([src ,(main-url page/student/photo u)]
+                       [style "vertical-align: middle"]
+                       [height "40"]))
+                     ,(student-display-name u))
                  (td ,(format-grade 0))
                  (td ,(format-grade 1))
                  (td
