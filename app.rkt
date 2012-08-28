@@ -1233,7 +1233,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       #:breadcrumb (list (cons "Admin" #f))
       `(div ([id "grade-button"])
             (a ([href ,(main-url page/admin/grade-next)]) "Grade"))
-      `(table ([id "grades sortable"])
+      `(table ([id "grades"])
         (thead
          (tr (th "Student")
              (th "Min")
@@ -1243,11 +1243,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          ,@(for/list ([u (in-list (sorted-users))])
              (parameterize ([current-user u])
                `(tr 
-                 (td (img
-                      ([src ,(main-url page/student/photo u)]
-                       [style "vertical-align: middle"]
-                       [height "40"]))
-                     ,(student-display-name u))
+                 (td ,(student-display-name u))
                  (td ,(format-grade 0))
                  (td ,(format-grade 1))
                  (td
