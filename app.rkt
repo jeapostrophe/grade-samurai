@@ -26,7 +26,6 @@
 
 ;; XXX TODO Experiment with more keyboard shortcuts
 
-;; XXX TODO Enforcing optional-enable
 ;; XXX TODO Dealing with your-split (wlang1/wlang2)
 
 (define (format-% v)
@@ -369,6 +368,23 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (parameterize ([current-user peer])
       (assignment-question-prof-numeric-grade id i)))
 
+  (define (is-optional-enabled?)
+    (for/and ([a (in-list assignments)]
+              #:when (zero? (assignment-normal-weight a))
+              #:when (zero? (assignment-optional-weight a)))
+      (define a-id (assignment-id a))
+      (or
+       ;; It is before the self assessment date
+       (< (current-seconds) (assignment-eval-secs a))
+       ;; It is after and...
+       (and
+        ;; they've evaluated themselves...
+        (self-eval-completed? a)
+        ;; and so have I...
+        (prof-eval-completed? a)
+        ;; and I said they did do it
+        (assignment-question-prof-bool-grade a-id 0)))))
+
   (define (compute-question-grade optional? default-grade id i q)
     (match-define (question nw ow _ t) q)
     (define ow-p (if optional? ow 0))
@@ -431,20 +447,23 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (compute-assignment-grade a default-grade)
     (match-define (assignment nw ow id ds es ps qs) a)
+    (define optional-enable?
+      (is-optional-enabled?))
+    (define ow-p 
+      (if optional-enable? ow 0))
     (define self-pts
       (compute-question-grades
-       ;; XXX TODO incorporate optional-enable
-       #t default-grade
+       optional-enable? default-grade
        id qs))
     (define peer-pts
       (compute-peer-grades
-       #t default-grade
+       optional-enable? default-grade
        id qs))
     (if (number? ps)
-      (* (+ ow nw)
+      (* (+ ow-p nw)
          (+ (* 9/10 self-pts)
             (* 1/10 peer-pts)))
-      (* (+ ow nw) self-pts)))
+      (* (+ ow-p nw) self-pts)))
 
   (define (compute-assignment-grade/id a-id default-grade)
     (compute-assignment-grade (id->assignment a-id) default-grade))
@@ -584,15 +603,16 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (page/assignment/generalized/html a-id #:peer [peer #f])
     (define assignment (id->assignment a-id))
     (parameterize ([current-user (or peer (current-user))])
+      (define optional-enable? (is-optional-enabled?))
       (side-by-side-render 
        a-id
        (for/list ([q (in-list (assignment-questions assignment))]
                   [i (in-naturals)])
          (match-define (question nw ow prompt type) q)
+         (define ow-p (if optional-enable? ow 0))
          `(div ([class "answers"])
                (p (span ([class "weight"])
-                        ;; XXX TODO incorporate optional-enable
-                        ,(format-% (+ nw ow)))
+                        ,(format-% (+ nw ow-p)))
                   ,prompt)
                ,(format-answer
                  (if peer "Peer's Self" "Self")
@@ -921,6 +941,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
            (or (self-eval-completed? a)
                (> (current-seconds) (assignment-eval-secs a)))))
        assignments))
+
+    (define optional-enable? (is-optional-enabled?))
    
     ;; TODO render offline assignments (like the final) differently
     (define (render-assignment a)
@@ -950,7 +972,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         (tr (td ,(assignment-id a))
             (td ,(format-%
                   (+ (assignment-normal-weight a)
-                     (assignment-optional-weight a))))
+                     (if optional-enable?
+                       (assignment-optional-weight a)
+                       0))))
             (td ,(cond
                    [next-due
                    (format
