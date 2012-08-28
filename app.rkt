@@ -32,8 +32,6 @@
 
 ;; XXX TODO Experiment with more keyboard shortcuts
 
-;; XXX TODO Add class average statistics on admin and student
-
 ;; XXX TODO Enforcing optional-enable
 ;; XXX TODO Dealing with your-split (wlang1/wlang2)
 
@@ -68,12 +66,6 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 (define (make-parent-directory* p)
   (define parent (path-only p))
   (make-directory* parent))
-(define (display-to-file* v pth)
-  (make-parent-directory* pth)
-  (display-to-file v pth #:exists 'replace))
-(define (write-to-file* v pth)
-  (make-parent-directory* pth)
-  (write-to-file v pth #:exists 'replace))
 
 (define (letter-grade ng)
     (cond
@@ -110,6 +102,16 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          #:authenticate authenticate-users
          #:username-request-text login-formlet-un-text
          #:password-request-text login-formlet-pw-text)
+
+  (define (display-to-file* v pth)
+    (GRADE-CACHE-CLEAR!)
+    (make-parent-directory* pth)
+    (display-to-file v pth #:exists 'replace))
+
+  (define (write-to-file* v pth)
+    (GRADE-CACHE-CLEAR!)
+    (make-parent-directory* pth)
+    (write-to-file v pth #:exists 'replace))
 
   (define assignments
     (sort pre-assignments
@@ -453,9 +455,19 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (compute-assignment-grade/id a-id default-grade)
     (compute-assignment-grade (id->assignment a-id) default-grade))
 
-  (define (compute-grade default-grade)
+  (define (compute-grade* default-grade)
     (for/sum ([a (in-list assignments)])
              (compute-assignment-grade a default-grade)))
+
+  (define GRADE-CACHE (make-hash))
+  (define (GRADE-CACHE-CLEAR!)
+    (hash-remove! GRADE-CACHE (current-user)))
+  (define (compute-grade dg)
+    (define user-ht
+      (hash-ref! GRADE-CACHE (current-user)
+                 (λ () (make-hash))))
+    (hash-ref! user-ht dg
+               (λ () (compute-grade* dg))))
 
   (define (assignment-file-display a-id)
     (define-values (html end-line-number)
@@ -482,7 +494,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                 ,@rhs))))
 
   (define (format-grade default-grade)
-    (define g (compute-grade default-grade))
+    (show-grade
+     (compute-grade default-grade)))
+
+  (define (show-grade g)
     (define l (letter-grade g))
     `(span ([class ,(substring l 0 1)])
            ,(format "~a (~a)"
@@ -982,12 +997,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (send/back
      (template
       #:breadcrumb (list (cons "Home" #f))
-      ;; TODO
-      `(div ([id "class-score"])
-            (table (tr (th "Mininum Final Grade")
-                       (th "Maximum Final Grade"))
-                   (tr (td ,(format-grade 0))
-                       (td ,(format-grade 1)))))
+      (class-average-table)
       `(div ([class "assignments upcoming"])
             (h1 "Future")
             ,@(map render-assignment upcoming))
@@ -1210,10 +1220,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                  (br)
                  ,(student-display-name u)))))       
 
-       (write-to-file*
-        ans
-        (parameterize ([current-user u])
-          (assignment-question-prof-grade-path id i)))
+       (parameterize ([current-user u])
+         (write-to-file*
+          ans
+          (assignment-question-prof-grade-path id i))
+         (parameterize ([current-user (assignment-peer id)])
+           (GRADE-CACHE-CLEAR!)))
 
        (redirect-to
         (main-url page/admin/grade-next))]
@@ -1224,6 +1236,48 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                             (cons "Grading" #f))
          "All grading is done! Great!"))]))
 
+  (define (class-average-table)
+    (define mins 
+      (map (λ (u)
+             (parameterize ([current-user u])
+               (compute-grade 0)))
+           (users)))
+    (define maxs 
+      (map (λ (u)
+             (parameterize ([current-user u])
+               (compute-grade 1)))
+           (users)))
+    `(table ([class "class-grades"])
+            (tr (th "Min") (th "Max"))
+            ,(if (is-admin?)
+               ""
+               `(tr (td ,(format-grade 0))
+                    (td ,(format-grade 1))))
+            (tr (td ,(stat-table mins))
+                (td ,(stat-table maxs)))))
+
+  (define (stat-table l)
+    `(table ([class "grade-stats"])
+            (tr (th "Min")
+                (th "Mean")
+                (th "Median")
+                (th "Max"))
+            (tr (td ,(show-grade (list-min l)))
+                (td ,(show-grade (average l)))
+                (td ,(show-grade (median l)))
+                (td ,(show-grade (list-max l))))))
+
+  (define (list-min l)
+    (apply min l))
+  (define (average l)
+    (/ (apply + l)
+       (length l)))
+  (define (median l)
+    (list-ref (sort l <)
+              (floor (/ (length l) 2))))
+  (define (list-max l)
+    (apply max l))
+
   (define (page/admin req)
     (unless (is-admin?)
       (page/root req))
@@ -1233,6 +1287,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       #:breadcrumb (list (cons "Admin" #f))
       `(div ([id "grade-button"])
             (a ([href ,(main-url page/admin/grade-next)]) "Grade"))
+      (class-average-table)
       `(table ([id "grades"])
         (thead
          (tr (th "Student")

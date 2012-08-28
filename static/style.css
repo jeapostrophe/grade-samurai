@@ -37,6 +37,18 @@ body {
     float: right;
 }
 
+table.class-grades {
+    width: 100%;
+    text-align: center;
+    background: #eceeec;
+    border-radius: 10px;
+}
+
+table.grade-stats {
+    margin-left: auto;
+    margin-right: auto;
+}
+
 #class-score table {
     width: 100%;
     text-align: center;
@@ -209,7 +221,7 @@ div.student-info {
     position: absolute;
     bottom: 0;
     height: 3em;  /* footer height */
-    width: 100%;
+    width: 98%;
     text-align: right;
     background: #F5F5DC;
     padding-right: 1em;
