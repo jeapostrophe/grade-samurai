@@ -24,12 +24,6 @@
 
 (define DEBUG? #f)
 
-;; XXX TODO After performing a self-evaluation, the link should either
-;; immediately change to "view self evaluation", or else it should be
-;; editable. It is unintuitive to leave the "do self eval" link
-;; without allowing the user to actually do it when clicked. The same
-;; goes for Grade a peer.
-
 ;; XXX TODO Experiment with more keyboard shortcuts
 
 ;; XXX TODO Enforcing optional-enable
@@ -904,7 +898,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (page/root req))
     (define a-day (* 60 60 24))
     (define 2-days (* a-day 2))
-    (define (cond-hyperlink available closed text1 link1 text2 link2)
+    (define (cond-hyperlink done? available closed text1 link1 text2 link2)
       (cond
         [(or (not available) (not closed))
          ""]
@@ -913,7 +907,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
              (a ([href ,link2]) ,text2))]
         [(< (current-seconds) available)
          text1]
-        [(> (current-seconds) closed)
+        [(or done? (> (current-seconds) closed))
          `(a ([href ,link2]) ,text2)]
         [else
          `(a ([href ,link1]) ,text1)]))
@@ -972,6 +966,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                              (assignment-id a)
                              0)))])))
         (tr (td ,(cond-hyperlink
+                  #f
                   (current-seconds) (assignment-due-secs a)
                   "Turn in Files"
                   (main-url page/assignment/files
@@ -979,6 +974,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                   "View Files"
                   (main-url page/assignment/files (assignment-id a))))
             (td ,(cond-hyperlink
+                  (self-eval-completed? a)
                   (assignment-due-secs a) (assignment-eval-secs a)
                   "Self Evaluation"
                   (main-url page/assignment/self/edit
@@ -987,6 +983,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                   (main-url page/assignment/self
                             (assignment-id a))))
             (td ,(cond-hyperlink
+                  (peer-eval-completed? a)
                   (assignment-eval-secs a) (assignment-peer-secs a)
                   "Grade a Peer"
                   (main-url page/assignment/peer/edit
@@ -1248,7 +1245,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                (compute-grade 1)))
            (users)))
     `(table ([class "class-grades"])
-            (tr (th "Min") (th "Max"))
+            (tr (th "Minimum Final Grade")
+                (th "Maximum Final Grade"))
             ,(if (is-admin?)
                ""
                `(tr (td ,(format-grade 0))
@@ -1258,7 +1256,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (stat-table l)
     `(table ([class "grade-stats"])
-            (tr (th "Min")
+            (tr (th "Class Min")
                 (th "Mean")
                 (th "Median")
                 (th "Max"))
