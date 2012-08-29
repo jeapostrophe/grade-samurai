@@ -831,17 +831,17 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (match 
           (binding:form-value 
            (bindings-assq #"submit" bs))
-        [#"bool_Y"
+        [(or #"Yes" #"bool_Y")
          #t]
-        [#"bool_N"
+        [(or #"No" #"bool_N")
          #f]
-        [#"num_0"
+        [(or #"0" #"num_0")
          0]
-        [#"num_0.5"
+        [(or #"0.5" #"num_0.5")
          1/2]
-        [#"num_1"
+        [(or #"1" #"num_1")
          1]
-        [#"num_input"
+        [(or #"Other" #"num_input")
          (string->number
           (bytes->string/utf-8
            (binding:form-value 

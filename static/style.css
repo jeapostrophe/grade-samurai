@@ -104,11 +104,11 @@ span.F {
 }
 
 .content {
-  overflow-y: auto;
+/*  overflow-y: auto; */
   margin-left: auto;
   margin-right: auto;
   width: 95%;
-  height: 80%;
+/*  height: 80%;
   margin-bottom: 3em; /* footer height */
 }
 
@@ -123,7 +123,7 @@ div.side-by-side {
 
 div.side-by-side div.left {
     width: 50%;
-    height: 100%;
+/*    height: 100%; */
     float: left;
     overflow-y: auto;
 }
@@ -135,7 +135,7 @@ div.side-by-side-inner {
 
 div.side-by-side div.right {
     width: 50%;
-    height: 100%;
+/*    height: 100%; */
     float: left;
     overflow-y: auto;
 }
@@ -218,11 +218,11 @@ div.student-info {
 }
 
 #footer {
-    position: absolute;
+/*    position: absolute;
     bottom: 0;
     height: 3em;  /* footer height */
     width: 98%;
     text-align: right;
     background: #F5F5DC;
-    padding-right: 1em;
+/*    padding-right: 1em; */
 }
