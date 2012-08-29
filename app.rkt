@@ -1237,7 +1237,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           (list 
            `(div ([class "student-info"])
                  (img ([src ,(main-url page/student/photo u)]
-                       [height "80"])) 
+                       [height "160"])) 
                  (br)
                  ,(student-display-name u)))))       
 
