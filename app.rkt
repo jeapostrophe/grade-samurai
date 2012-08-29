@@ -466,7 +466,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (* (+ ow-p nw) self-pts)))
 
   (define (compute-assignment-grade/id a-id default-grade)
-    (compute-assignment-grade (id->assignment a-id) default-grade))
+    (define a (id->assignment a-id))
+    (compute-assignment-grade 
+     a 
+     (if (< (current-seconds) (assignment-due-secs a))
+       default-grade
+       0)))
 
   (define (compute-grade* default-grade)
     (for/sum ([a (in-list assignments)])
@@ -1320,7 +1325,13 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          ,@(for/list ([u (in-list (sorted-users))])
              (parameterize ([current-user u])
                `(tr 
-                 (td ,(student-display-name u))
+                 (td ,(student-display-name u)
+                     " "
+                     "("
+                     (a ([href ,(format "mailto:~a"
+                                        (student-email (student-info u)))])
+                        ,u)
+                     ")")
                  (td ,(format-grade 0))
                  (td ,(format-grade 1))
                  (td
