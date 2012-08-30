@@ -895,35 +895,22 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (string-split (bytes->string/utf-8 (file->bytes file-path))
                     #px"\r\n?|\n"
                     #:trim? #f))
-    (define (line->line-content-div line line-num)
-      `(div ([id ,(format "LC~a" line-num)]
-             [class "line"]
-             [rel ,(format "#LC~a" line-num)])
-            ,((λ (l)(if (string=? "" l) '(br) l)) line)))
-
     (values 
      `(div ([class "file"])
            (div ([class "meta"]) ,(format "~a" (path->last-part file-path)))
            (div 
             ([class "data type-text"])
             (table 
-             ([class "lines"][cellspacing "0"][cellpadding "0"])
+             ([class "lines"]
+              [cellspacing "0"]
+              [cellpadding "0"])
              (tbody
-              (tr
-               (td
-                (pre ([class "line_numbers"]
-                      [style "margin: 0pt; padding-right: 10px;"])
-                     ,@(map
-                        (λ (n)
-                          `(span ([id ,(format "L~a" n)])
-                                 ,(number->string n) (br)))
-                        (build-list (length file-lines) 
-                                    (curry + line-offset)))))
-               (td ([width "100%"])
-                   (div (pre
-                         ,@(map line->line-content-div file-lines
-                                (build-list (length file-lines)
-                                            (curry + line-offset)))))))))))
+              ,@(for/list ([line-num (in-naturals line-offset)]
+                           [line (in-list file-lines)])
+                  `(tr ([id ,(format "LC~a" line-num)]
+                        [rel ,(format "#LC~a" line-num)])
+                       (td (pre ,(number->string line-num)))
+                       (td (pre ,line))))))))
      (+ line-offset (length file-lines))))
     
   (define (page/logout req)
