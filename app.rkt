@@ -478,6 +478,32 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
              (compute-assignment-grade a default-grade)))
 
   (define GRADE-CACHE (make-hash))
+  (define GRADE-CACHE-T
+    (thread 
+     (λ ()
+       (let loop ()
+         (define now (current-seconds))
+         (define all-due
+           (append-map (λ (a)
+                         (list (assignment-due-secs a)
+                               (assignment-eval-secs a)
+                               (assignment-peer-secs a)))
+                       assignments))
+         (define still-due
+           (filter (λ (t)
+                     (and t
+                          (< now t)))
+                   all-due))
+         (define sorted-due
+           (sort still-due <))
+         (match sorted-due
+           [(list)
+            (void)]
+           [(list* some-due _)
+            (sleep (- some-due now))
+            (for ([k (in-hash-keys GRADE-CACHE)])
+              (hash-remove! GRADE-CACHE k))
+            (loop)])))))
   (define (GRADE-CACHE-CLEAR!)
     (hash-remove! GRADE-CACHE (current-user)))
   (define (compute-grade dg)
@@ -984,7 +1010,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                    [next-due
                    (format
                     "Due ~a in ~a"
-                    (date->string (seconds->date next-due))
+                    (date->string (seconds->date next-due) #t)
                     (secs->time-text (- next-due (current-seconds))))]
                    [(not (prof-eval-completed? a))
                     "Completed, waiting on professor evaluation."]
