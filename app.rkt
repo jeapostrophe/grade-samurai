@@ -445,7 +445,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define compute-peer-grades
     (make-compute-question-grades compute-peer-grade))
 
-  (define (compute-assignment-grade a default-grade)
+  (define (compute-assignment-grade* a default-grade)
     (match-define (assignment nw ow id ds es ps qs) a)
     (define optional-enable?
       (is-optional-enabled?))
@@ -465,13 +465,22 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             (* 1/10 peer-pts)))
       (* (+ ow-p nw) self-pts)))
 
+  (define (compute-assignment-grade a default-grade)
+    (define optional-enable?
+      (is-optional-enabled?))
+    (define base
+      (compute-assignment-grade* 
+       a
+       (if (< (current-seconds) (assignment-due-secs a))
+         default-grade
+         0)))
+    (if optional-enable?
+      base
+      (min 1 base)))
+
   (define (compute-assignment-grade/id a-id default-grade)
     (define a (id->assignment a-id))
-    (compute-assignment-grade 
-     a 
-     (if (< (current-seconds) (assignment-due-secs a))
-       default-grade
-       0)))
+    (compute-assignment-grade a default-grade))
 
   (define (compute-grade* default-grade)
     (for/sum ([a (in-list assignments)])
@@ -981,7 +990,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         (cond
           [(peer-eval-completed? a)
            #f]
-          [(self-eval-completed? a)
+          [(or (self-eval-completed? a)
+               (> (current-seconds) (assignment-eval-secs a)))
            (assignment-peer-secs a)]
           [(> (current-seconds) (assignment-due-secs a))
            (assignment-eval-secs a)]
@@ -1012,7 +1022,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                     "Due ~a in ~a"
                     (date->string (seconds->date next-due) #t)
                     (secs->time-text (- next-due (current-seconds))))]
-                   [(not (prof-eval-completed? a))
+                   [(and (self-eval-completed? a)
+                         (not (prof-eval-completed? a)))
                     "Completed, waiting on professor evaluation."]
                    [else
                    `(span "Completed: "
