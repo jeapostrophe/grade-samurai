@@ -1178,9 +1178,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                     `(span ([class "not-this"]) ,name " / ")]))
              ,(if (current-user)
                 `(span ([id "logout"])
-                       (a ([href ,(main-url page/account)])
-                          ,(current-user)) " | "
-                          (a ([href ,(main-url page/logout)]) "logout"))
+                       ,(if (is-admin?)
+                          (current-user)
+                          `(a ([href ,(main-url page/account)])
+                              ,(current-user)))
+                       " | "
+                       (a ([href ,(main-url page/logout)]) "logout"))
                 ""))
         (div ([class "content"])
              ,@bodies)
@@ -1225,7 +1228,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (unless (is-admin?)
       (send/back
        (template
-        #:breadcrumb (list (cons "Admin" (main-url page/main))
+        #:breadcrumb (list (cons "Professor" (main-url page/main))
                            (cons "Grading" #f))
         "Only the admin can view this page.")))
     ;; XXX CLEANUP Mimic this structure for students self & peer
@@ -1257,7 +1260,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          (grade-question 
           u id q i
           #:breadcrumb 
-          (list (cons "Admin" (main-url page/admin))
+          (list (cons "Professor" (main-url page/admin))
                 (cons "Grading" #f)
                 (cons (student-display-name u) #f)
                 (cons id #f))
@@ -1282,7 +1285,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       [#f
        (send/back
         (template
-         #:breadcrumb (list (cons "Admin" (main-url page/admin)) 
+         #:breadcrumb (list (cons "Professor" (main-url page/admin)) 
                             (cons "Grading" #f))
          "All grading is done! Great!"))]))
 
@@ -1335,7 +1338,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
     (send/back
      (template
-      #:breadcrumb (list (cons "Admin" #f))
+      #:breadcrumb (list (cons "Professor" #f))
       `(div ([id "grade-button"])
             (a ([href ,(main-url page/admin/grade-next)]) "Grade"))
       (class-average-table)
