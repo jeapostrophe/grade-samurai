@@ -459,11 +459,15 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (compute-peer-grades
        optional-enable? default-grade
        id qs))
-    (if (number? ps)
-      (* (+ ow-p nw)
-         (+ (* 9/10 self-pts)
-            (* 1/10 peer-pts)))
-      (* (+ ow-p nw) self-pts)))
+    (define pre-score
+      (if (number? ps)
+        (* (+ ow-p nw)
+           (+ (* 9/10 self-pts)
+              (* 1/10 peer-pts)))
+        (* (+ ow-p nw) self-pts)))
+    (if (zero? nw)
+      (max 0 pre-score)
+      pre-score))
 
   (define (compute-assignment-grade a default-grade)
     (define optional-enable?
