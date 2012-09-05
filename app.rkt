@@ -1263,21 +1263,26 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           (cons q i)))
 
        (define ans
-         (grade-question 
-          u id q i
-          #:breadcrumb 
-          (list (cons "Professor" (main-url page/admin))
-                (cons "Grading" #f)
-                (cons (student-display-name u) #f)
-                (cons id #f))
-          #:peer? #t
-          #:extra 
-          (list 
-           `(div ([class "student-info"])
-                 (img ([src ,(main-url page/student/photo u)]
-                       [height "160"])) 
-                 (br)
-                 ,(student-display-name u)))))       
+         (match (parameterize ([current-user u])
+                  (assignment-question-student-grade id i))
+           [(answer:bool _ _ #f)
+            (answer:bool (current-seconds) "" #f)]
+           [_
+            (grade-question 
+             u id q i
+             #:breadcrumb 
+             (list (cons "Professor" (main-url page/admin))
+                   (cons "Grading" #f)
+                   (cons (student-display-name u) #f)
+                   (cons id #f))
+             #:peer? #t
+             #:extra 
+             (list 
+              `(div ([class "student-info"])
+                    (img ([src ,(main-url page/student/photo u)]
+                          [height "160"])) 
+                    (br)
+                    ,(student-display-name u))))]))
 
        (parameterize ([current-user u])
          (write-to-file*
