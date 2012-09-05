@@ -637,9 +637,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                               "Yes"
                               "No")]
                            [(answer:numeric _ _ value)
-                            (format-% value)])))
-             (script ([src "/line-highlight.js"]
-                      [type "text/javascript"]) " ")
+                            (format-% value)])))             
              ,(string->linked-html (answer-comments ans)))]
       [else
        `(div ([class ,(format "answer incomplete ~a" which)])
@@ -1167,6 +1165,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        (head (title ,@(add-between (map car bc) " > "))
              (script ([src "/sorttable.js"]) " ")
              (script ([src ,jquery-url]) " ")
+             (script ([src "/line-highlight.js"]
+                      [type "text/javascript"]) " ")
              (link ([rel "stylesheet"]
                     [type "text/css"]
                     [href "/style.css"])))

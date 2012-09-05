@@ -225,6 +225,7 @@ div.student-info {
     text-align: right;
     background: #F5F5DC;
 /*    padding-right: 1em; */
+    clear: both;
 }
 
 
