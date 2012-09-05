@@ -986,7 +986,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (define (render-assignment a)
       (define next-due
         (cond
-          [(peer-eval-completed? a)
+          [(or (peer-eval-completed? a)
+               (and (assignment-peer-secs a)
+                    (> (current-seconds) (assignment-peer-secs a))))
            #f]
           [(or (self-eval-completed? a)
                (> (current-seconds) (assignment-eval-secs a)))
@@ -1016,10 +1018,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                        0))))
             (td ,(cond
                    [next-due
-                   (format
-                    "Due ~a in ~a"
-                    (date->string (seconds->date next-due) #t)
-                    (secs->time-text (- next-due (current-seconds))))]
+                    (format
+                     "Due ~a in ~a"
+                     (date->string (seconds->date next-due) #t)
+                     (secs->time-text (- next-due (current-seconds))))]
                    [(and (self-eval-completed? a)
                          (not (prof-eval-completed? a)))
                     "Completed, waiting on professor evaluation."]
