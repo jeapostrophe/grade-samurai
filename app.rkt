@@ -787,112 +787,119 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                           #:their? [their? #t]
                           #:peer? [peer? #f]
                           #:extra [extra empty])
-    (define boolean-formlet
-      (formlet
-       (p ,{(radio-group '(#t #f)
-                         #:checked? (λ (x) x)
-                         #:display (λ (x) (if x "Yes" "No")))
-            . => . credit})
-       credit))   
+    
+    (match (parameterize ([current-user stu])
+             (assignment-question-student-grade a-id i))
+      [(answer:bool _ _ #f)
+       (answer:bool (current-seconds) "" #f)]
+      [_
+       
+       (define boolean-formlet
+         (formlet
+          (p ,{(radio-group '(#t #f)
+                            #:checked? (λ (x) x)
+                            #:display (λ (x) (if x "Yes" "No")))
+               . => . credit})
+          credit))   
 
-    (define request
-      (send/suspend
-       (λ (k-url)
-         (template
-          #:breadcrumb bc
-          (parameterize ([current-user stu])
-            (side-by-side-render
-             #:sticky? #t
-             a-id
-             (append 
-              extra
-              (list 
-               `(p ,(question-prompt question))
-               (if their?
-                 (format-answer 
-                  "Their" 
-                  (parameterize ([current-user stu])
-                    (assignment-question-student-grade a-id i)))
-                 "")
-               (if peer?
-                 (format-answer
-                  "Peer" 
-                  (parameterize ([current-user stu])
-                    (assignment-question-peer-grade a-id i)))
-                 "")        
-               (if their?
-                 `(p "What do you think they earned?")
-                 "")
-               `(form ([action ,k-url] [method "post"])
-                      ,(match (question-type question)
-                         ['bool
-                          `(p (button ([name "submit"]
-                                       [type "submit"]
-                                       [value "bool_Y"])
-                                      "Yes")
-                              (button ([name "submit"]
-                                       [type "submit"]
-                                       [value "bool_N"])
-                                      "No"))]
-                         ['numeric
-                          `(p (button ([name "submit"]
-                                       [type "submit"]
-                                       [value "num_0"])
-                                      "0")
-                              (button ([name "submit"]
-                                       [type "submit"]
-                                       [value "num_0.5"])
-                                      "0.5")
-                              (button ([name "submit"]
-                                       [type "submit"]
-                                       [value "num_1"])
-                                      "1")
-                              (input ([name "numeric"]
-                                      [type "text"]
-                                      [value "[0, 1]"]))
-                              (button ([name "submit"]
-                                       [type "submit"]
-                                       [value "num_input"])
-                                      "Other"))])
-                      (p "Provide evidence to justify that score.")
-                      (textarea ([name "comments"]
-                                 [rows "8"]
-                                 [cols "60"]))
-                      (p "(If you need to refer to line numbers, prefix a number with L. For example, use L32 or l32 to refer to line 32)"))))))))))
+       (define request
+         (send/suspend
+          (λ (k-url)
+            (template
+             #:breadcrumb bc
+             (parameterize ([current-user stu])
+               (side-by-side-render
+                #:sticky? #t
+                a-id
+                (append 
+                 extra
+                 (list 
+                  `(p ,(question-prompt question))
+                  (if their?
+                    (format-answer 
+                     "Their" 
+                     (parameterize ([current-user stu])
+                       (assignment-question-student-grade a-id i)))
+                    "")
+                  (if peer?
+                    (format-answer
+                     "Peer" 
+                     (parameterize ([current-user stu])
+                       (assignment-question-peer-grade a-id i)))
+                    "")        
+                  (if their?
+                    `(p "What do you think they earned?")
+                    "")
+                  `(form ([action ,k-url] [method "post"])
+                         ,(match (question-type question)
+                            ['bool
+                             `(p (button ([name "submit"]
+                                          [type "submit"]
+                                          [value "bool_Y"])
+                                         "Yes")
+                                 (button ([name "submit"]
+                                          [type "submit"]
+                                          [value "bool_N"])
+                                         "No"))]
+                            ['numeric
+                             `(p (button ([name "submit"]
+                                          [type "submit"]
+                                          [value "num_0"])
+                                         "0")
+                                 (button ([name "submit"]
+                                          [type "submit"]
+                                          [value "num_0.5"])
+                                         "0.5")
+                                 (button ([name "submit"]
+                                          [type "submit"]
+                                          [value "num_1"])
+                                         "1")
+                                 (input ([name "numeric"]
+                                         [type "text"]
+                                         [value "[0, 1]"]))
+                                 (button ([name "submit"]
+                                          [type "submit"]
+                                          [value "num_input"])
+                                         "Other"))])
+                         (p "Provide evidence to justify that score.")
+                         (textarea ([name "comments"]
+                                    [rows "8"]
+                                    [cols "60"]))
+                         (p "(If you need to refer to line numbers, prefix a number with L. For example, use L32 or l32 to refer to line 32)"))))))))))
 
-    (define bs
-      (request-bindings/raw request))
-    (define comment
-      (bytes->string/utf-8
-       (binding:form-value 
-        (bindings-assq #"comments" bs))))
-    (define score 
-      (match 
+       (define bs
+         (request-bindings/raw request))
+       (define comment
+         (bytes->string/utf-8
           (binding:form-value 
-           (bindings-assq #"submit" bs))
-        [(or #"Yes" #"bool_Y")
-         #t]
-        [(or #"No" #"bool_N")
-         #f]
-        [(or #"0" #"num_0")
-         0]
-        [(or #"0.5" #"num_0.5")
-         1/2]
-        [(or #"1" #"num_1")
-         1]
-        [(or #"Other" #"num_input")
-         (string->number
-          (bytes->string/utf-8
-           (binding:form-value 
-            (bindings-assq #"numeric" bs))))]))
+           (bindings-assq #"comments" bs))))
+       (define score 
+         (match 
+             (binding:form-value 
+              (bindings-assq #"submit" bs))
+           [(or #"Yes" #"bool_Y")
+            #t]
+           [(or #"No" #"bool_N")
+            #f]
+           [(or #"0" #"num_0")
+            0]
+           [(or #"0.5" #"num_0.5")
+            1/2]
+           [(or #"1" #"num_1")
+            1]
+           [(or #"Other" #"num_input")
+            (string->number
+             (bytes->string/utf-8
+              (binding:form-value 
+               (bindings-assq #"numeric" bs))))]))
 
-    ((match (question-type question)
-       ['bool
-        answer:bool]
-       ['numeric
-        answer:numeric])
-     (current-seconds) comment
-     score))
+       ((match (question-type question)
+          ['bool
+           answer:bool]
+          ['numeric
+           answer:numeric])
+        (current-seconds) comment
+        score)]))
 
   (define (file->html-table a-id file-path line-offset)
     (define file-lines
@@ -1263,26 +1270,21 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           (cons q i)))
 
        (define ans
-         (match (parameterize ([current-user u])
-                  (assignment-question-student-grade id i))
-           [(answer:bool _ _ #f)
-            (answer:bool (current-seconds) "" #f)]
-           [_
-            (grade-question 
-             u id q i
-             #:breadcrumb 
-             (list (cons "Professor" (main-url page/admin))
-                   (cons "Grading" #f)
-                   (cons (student-display-name u) #f)
-                   (cons id #f))
-             #:peer? #t
-             #:extra 
-             (list 
-              `(div ([class "student-info"])
-                    (img ([src ,(main-url page/student/photo u)]
-                          [height "160"])) 
-                    (br)
-                    ,(student-display-name u))))]))
+         (grade-question 
+          u id q i
+          #:breadcrumb 
+          (list (cons "Professor" (main-url page/admin))
+                (cons "Grading" #f)
+                (cons (student-display-name u) #f)
+                (cons id #f))
+          #:peer? #t
+          #:extra 
+          (list 
+           `(div ([class "student-info"])
+                 (img ([src ,(main-url page/student/photo u)]
+                       [height "160"])) 
+                 (br)
+                 ,(student-display-name u)))))
 
        (parameterize ([current-user u])
          (write-to-file*
