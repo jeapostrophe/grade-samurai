@@ -541,10 +541,11 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     `(div ([class "files"])
           ,@html))
   
-  
-
-  (define (side-by-side-render a-id rhs)
-    `(div ([class "side-by-side"])
+  (define (side-by-side-render a-id rhs #:sticky? [sticky? #f])
+    `(div ([class ,(format "side-by-side~a"
+                           (if sticky?
+                             " sticky"
+                             ""))])
           (div ([class "left"]) (div ([class "side-by-side-inner"])
                 ,(assignment-file-display a-id)))
           (div ([class "right"]) (div ([class "side-by-side-inner"])
@@ -803,6 +804,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           #:breadcrumb bc
           (parameterize ([current-user stu])
             (side-by-side-render
+             #:sticky? #t
              a-id
              (append 
               extra
