@@ -24,10 +24,6 @@
 
 (define DEBUG? #f)
 
-;; XXX TODO Experiment with more keyboard shortcuts
-
-;; XXX TODO Dealing with your-split (wlang1/wlang2)
-
 (define (format-% v)
   (format "~a%" (real->decimal-string (* 100 v) 2)))
 
