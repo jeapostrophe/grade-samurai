@@ -37,11 +37,15 @@ body {
     float: right;
 }
 
-table.class-grades {
+table.class_grades {
     width: 100%;
     text-align: center;
     background: #eceeec;
     border-radius: 10px;
+}
+
+table.class_grades thead th {
+    text-align: center;
 }
 
 table.grade-stats {
@@ -205,11 +209,16 @@ table#grades tbody tr:nth-child(2n) {
     background: #F5F5DC;
 }
 
-table#grades th:nth-child(2),th:nth-child(3) {
+table#grades th:nth-child(2), table#grades th:nth-child(3),
+    table#grades th:nth-child(4) {
     text-align: right;
 }
 
-table#grades tr td:nth-child(2),td:nth-child(3) {
+table#grades tr td:nth-child(2), table#grades tr td:nth-child(3), table#grades tr td:nth-child(4) {
+    text-align: right;
+}
+
+table.assignment td:nth-child(3) {
     text-align: right;
 }
 

@@ -486,6 +486,14 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (for/sum ([a (in-list assignments)])
              (compute-assignment-grade a default-grade)))
 
+  (define (maximum-grade-so-far)
+    (define now (current-seconds))
+    (for/sum ([a (in-list assignments)])
+             (match-define (assignment nw ow id ds es ps qs) a)
+             (if (< ds now)
+               nw
+               0)))
+
   (define GRADE-CACHE (make-hash))
   (define GRADE-CACHE-T
     (thread 
@@ -1306,19 +1314,31 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
              (parameterize ([current-user u])
                (compute-grade 0)))
            (users)))
+    (define max-so-far
+      (maximum-grade-so-far))
+    (define so-fars
+      (map (λ (min-grade)
+             (/ min-grade max-so-far))
+           mins))
     (define maxs 
       (map (λ (u)
              (parameterize ([current-user u])
                (compute-grade 1)))
            (users)))
-    `(table ([class "class-grades"])
+    `(table ([class "class_grades"])
             (tr (th "Minimum Final Grade")
+                (th "Grade So Far")
                 (th "Maximum Final Grade"))
-            ,(if (is-admin?)
-               ""
-               `(tr (td ,(format-grade 0))
-                    (td ,(format-grade 1))))
+            ,(cond
+               [(is-admin?)
+                ""]
+               [else
+                (define min-grade (compute-grade 0))
+                `(tr (td ,(show-grade min-grade))
+                     (td ,(show-grade (/ min-grade max-so-far)))
+                     (td ,(format-grade 1)))])
             (tr (td ,(stat-table mins))
+                (td ,(stat-table so-fars))
                 (td ,(stat-table maxs)))))
 
   (define (stat-table l)
@@ -1346,6 +1366,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (page/admin req)
     (unless (is-admin?)
       (page/root req))
+    
+    (define max-so-far
+      (maximum-grade-so-far))
 
     (send/back
      (template
@@ -1357,11 +1380,14 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         (thead
          (tr (th "Student")
              (th "Min")
+             (th "So Far")
              (th "Max")
              (th "Ungraded")))
         (tbody
          ,@(for/list ([u (in-list (sorted-users))])
              (parameterize ([current-user u])
+               (define min-grade (compute-grade 0))
+
                `(tr 
                  (td ,(student-display-name u)
                      " "
@@ -1370,7 +1396,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                         (student-email (student-info u)))])
                         ,u)
                      ")")
-                 (td ,(format-grade 0))
+                 (td ,(show-grade min-grade))
+                 (td ,(show-grade (/ min-grade max-so-far)))
                  (td ,(format-grade 1))
                  (td
                   ,@(for/list
