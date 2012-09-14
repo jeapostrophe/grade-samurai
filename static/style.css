@@ -155,6 +155,10 @@ div.answers {
     width: 95%;
 }
 
+div.answers.diff {
+    background: #ffeeec;
+}
+
 div.answers p span.weight {
     margin-right: 0.5em;
     background: #eceeec;

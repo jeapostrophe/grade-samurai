@@ -677,9 +677,17 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                 (not (file-exists? (assignment-question-prof-grade-path a-id i)))
                 (delete-file pth)
                 (redirect-to (main-url page/main)))))))
+         (define different?
+           (answer-different? (assignment-question-prof-grade a-id i)
+                              (if peer
+                                (assignment-question-peer-grade a-id i)
+                                (assignment-question-student-grade a-id i))))
          (match-define (question nw ow prompt type) q)
          (define ow-p (if optional-enable? ow 0))
-         `(div ([class "answers"])
+         `(div ([class ,(format "answers~a"
+                                (if different?
+                                  " diff"
+                                  ""))])
                (p (span ([class "weight"])
                         ,(format-% (+ nw ow-p)))
                   ,prompt
@@ -697,6 +705,18 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                  (if peer "Your" "Peer's")
                  (assignment-question-peer-grade a-id i)))))))
 
+  (define (answer-different? x y)
+    (match* (x y)
+      [((answer:bool _ _ x) (answer:bool _ _ y))
+       (not (equal? x y))]
+      [((answer:numeric _ _ x) (answer:numeric _ _ y))
+       (not (equal? x y))]
+      [(#f _)
+       #f]
+      [(_ #f)
+       #f]
+      [(_ _)
+       #t]))
 
   (define (page/assignment/self req a-id)
     (define assignment (id->assignment a-id))
