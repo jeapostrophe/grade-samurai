@@ -326,6 +326,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (define co-peer (assignment-co-peer id))
     (parameterize ([current-user co-peer])
       (assignment-question-student-grade/peer id i)))
+  (define (assignment-question-peer-grade-path id i)
+    (define co-peer (assignment-co-peer id))
+    (parameterize ([current-user co-peer])
+      (assignment-question-student-grade-path/peer id i)))
 
   ;; XXX CLEANUP this
   (define (assignment-question-student-bool-grade id i)
@@ -630,7 +634,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     `(p ([class "comment"])
         ,@html ,(substring s pos (string-length s))))
 
-  (define (format-answer which ans)
+  (define (format-answer which ans
+                         #:delete? [delete? #f])
     (cond
       [ans
        `(div ([class ,(format "answer ~a" which)])
@@ -642,13 +647,18 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                               "Yes"
                               "No")]
                            [(answer:numeric _ _ value)
-                            (format-% value)])))
+                            (format-% value)]))
+                ,(if delete?
+                   `(span " "
+                          (a ([href ,delete?])
+                             "(rescind)"))
+                   ""))
              ,(string->linked-html (answer-comments ans)))]
       [else
        `(div ([class ,(format "answer incomplete ~a" which)])
              (p ,(format "~a evaluation is not completed." which)))]))
 
-  (define (page/assignment/generalized/html a-id #:peer [peer #f])
+  (define (page/assignment/generalized/html embed/url a-id #:peer [peer #f])
     (define assignment (id->assignment a-id))
     (parameterize ([current-user (or peer (current-user))])
       (define optional-enable? (is-optional-enabled?))
@@ -656,6 +666,17 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        a-id
        (for/list ([q (in-list (assignment-questions assignment))]
                   [i (in-naturals)])
+         (define (delete-file-url pth)
+           (and
+            (file-exists? pth)
+            (not (file-exists? (assignment-question-prof-grade-path a-id i)))
+            (embed/url
+             (λ (req)
+               (and
+                (file-exists? pth)
+                (not (file-exists? (assignment-question-prof-grade-path a-id i)))
+                (delete-file pth)
+                (redirect-to (main-url page/main)))))))
          (match-define (question nw ow prompt type) q)
          (define ow-p (if optional-enable? ow 0))
          `(div ([class "answers"])
@@ -664,25 +685,30 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                   ,prompt
                   ,(format " (~a)" i))
                ,(format-answer
+                 #:delete? (and (not peer) 
+                                (delete-file-url (assignment-question-student-grade-path a-id i)))
                  (if peer "Peer's Self" "Self")
                  (assignment-question-student-grade a-id i))
                ,(format-answer
                  (if peer "Peer's Professor" "Professor")
                  (assignment-question-prof-grade a-id i))
                ,(format-answer
+                 #:delete? (and peer (delete-file-url (assignment-question-peer-grade-path a-id i)))
                  (if peer "Your" "Peer's")
                  (assignment-question-peer-grade a-id i)))))))
 
 
   (define (page/assignment/self req a-id)
     (define assignment (id->assignment a-id))
-    (template
-     #:breadcrumb
-     (list (cons "Home" (main-url page/main))
-           (cons "Assignments" #f)
-           (cons a-id #f)
-           (cons "Self Evaluation" #f))
-     (page/assignment/generalized/html a-id)))
+    (send/suspend/dispatch
+     (λ (embed/url)
+       (template
+        #:breadcrumb
+        (list (cons "Home" (main-url page/main))
+              (cons "Assignments" #f)
+              (cons a-id #f)
+              (cons "Self Evaluation" #f))
+        (page/assignment/generalized/html embed/url a-id)))))
 
   (define (page/assignment/peer req a-id)
     (define assignment (id->assignment a-id))
@@ -696,9 +722,11 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (template
        #:breadcrumb the-breadcrumb
        `(div ([class "notice"]) "Your peer has not been assigned."))
-      (template
-       #:breadcrumb the-breadcrumb
-       (page/assignment/generalized/html a-id #:peer peer))))
+      (send/suspend/dispatch
+       (λ (embed/url)
+         (template
+          #:breadcrumb the-breadcrumb
+          (page/assignment/generalized/html embed/url a-id #:peer peer))))))
 
   (define (page/assignment/peer/edit req a-id)
     (define assignment (id->assignment a-id))
@@ -999,7 +1027,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         [(or done? (> (current-seconds) closed))
          `(a ([href ,link2]) ,text2)]
         [else
-         `(a ([href ,link1]) ,text1)]))
+         `(p (a ([href ,link1]) ,text1) (br)
+             (a ([href ,link2]) ,text2))]))
     ;; TODO base off which phases they can still do
     (define-values (past upcoming)
       (partition
