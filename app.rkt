@@ -57,30 +57,30 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (make-directory* parent))
 
 (define (letter-grade ng)
-    (cond
-      [(> ng 0.93) "A"]
-      [(> ng 0.90) "A-"]
-      [(> ng 0.86) "B+"]
-      [(> ng 0.83) "B"]
-      [(> ng 0.80) "B-"]
-      [(> ng 0.76) "C+"]
-      [(> ng 0.73) "C"]
-      [(> ng 0.70) "C-"]
-      [(> ng 0.66) "D+"]
-      [(> ng 0.63) "D"]
-      [(> ng 0.60) "D-"]
-      [else "F"]))
+  (cond
+    [(> ng 0.93) "A"]
+    [(> ng 0.90) "A-"]
+    [(> ng 0.86) "B+"]
+    [(> ng 0.83) "B"]
+    [(> ng 0.80) "B-"]
+    [(> ng 0.76) "C+"]
+    [(> ng 0.73) "C"]
+    [(> ng 0.70) "C-"]
+    [(> ng 0.66) "D+"]
+    [(> ng 0.63) "D"]
+    [(> ng 0.60) "D-"]
+    [else "F"]))
 
 (define (path->last-part f)
-    (define-values (base name must-be-dir?)
-      (split-path f))
-    (path->string name))
+  (define-values (base name must-be-dir?)
+    (split-path f))
+  (path->string name))
 
-  (define (directory-list* pth)
-    (if (directory-exists? pth)
-      (sort (map path->last-part (directory-list pth))
-            string-ci<=?)
-      empty))
+(define (directory-list* pth)
+  (if (directory-exists? pth)
+    (sort (map path->last-part (directory-list pth))
+          string-ci<=?)
+    empty))
 
 (define-runtime-path source-dir ".")
 
@@ -162,13 +162,13 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        (redirect-to (parameterize ([current-user username]
                                    [current-user-type authenticated?])
                       (main-url page/root))
-                   #:headers
-                   (list (cookie->header
-                          (make-id-cookie secret-salt
-                                          (format "~a:~a"
-                                                  authenticated?
-                                                  username)))))]
-      [else (page/login 
+                    #:headers
+                    (list (cookie->header
+                           (make-id-cookie secret-salt
+                                           (format "~a:~a"
+                                                   authenticated?
+                                                   username)))))]
+      [else (page/login
              req
              (format "Invalid password for user (~S)" username))]))
 
@@ -208,7 +208,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           #:breadcrumb (list (cons "Home" (main-url page/main))
                              (cons (current-user) #f)
                              (cons "Details" #f))
-          `(div 
+          `(div
             ([id "account"])
             (form ([action ,k-url]
                    [method "post"]
@@ -229,7 +229,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (display-to-file* (binding:file-content photo)
                         (user-image-path)))
 
-    (redirect-to (main-url page/root)))  
+    (redirect-to (main-url page/root)))
 
   (define-values (main-dispatch main-url main-applies?)
     (dispatch-rules+applies
@@ -274,7 +274,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                        (parameterize ([current-user u])
                          (assignment-peer id)))
                u))
-        default-peer))  
+        default-peer))
 
   (define (users-path)
     (build-path db-path "users"))
@@ -282,7 +282,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (directory-list* (users-path)))
   (define (sorted-users)
     (sort (users)
-          string-ci<=?          
+          string-ci<=?
           #:key (compose student-lastname student-info)))
 
   (define (user-path)
@@ -324,7 +324,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (assignment-question-peer-grade id i)
     (define co-peer (assignment-co-peer id))
-    (parameterize ([current-user co-peer])      
+    (parameterize ([current-user co-peer])
       (assignment-question-student-grade/peer id i)))
 
   ;; XXX CLEANUP this
@@ -445,7 +445,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (match-define (assignment nw ow id ds es ps qs) a)
     (define optional-enable?
       (is-optional-enabled?))
-    (define ow-p 
+    (define ow-p
       (if optional-enable? ow 0))
     (define self-pts
       (compute-question-grades
@@ -469,7 +469,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (define optional-enable?
       (is-optional-enabled?))
     (define base
-      (compute-assignment-grade* 
+      (compute-assignment-grade*
        a
        (if (< (current-seconds) (assignment-due-secs a))
          default-grade
@@ -496,7 +496,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define GRADE-CACHE (make-hash))
   (define GRADE-CACHE-T
-    (thread 
+    (thread
      (λ ()
        (let loop ()
          (define now (current-seconds))
@@ -534,26 +534,26 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (define-values (html end-line-number)
       (for/fold ([html empty]
                  [line-offset 1])
-                ([file (in-list (assignment-files a-id))])
-        (define-values (table new-offset) 
-          (file->html-table 
-           a-id 
+          ([file (in-list (assignment-files a-id))])
+        (define-values (table new-offset)
+          (file->html-table
+           a-id
            (build-path (assignment-file-path a-id) file)
            line-offset))
         (values (append html (list table)) new-offset)))
-    
+
     `(div ([class "files"])
           ,@html))
-  
+
   (define (side-by-side-render a-id rhs #:sticky? [sticky? #f])
     `(div ([class ,(format "side-by-side~a"
                            (if sticky?
                              " sticky"
                              ""))])
           (div ([class "left"]) (div ([class "side-by-side-inner"])
-                ,(assignment-file-display a-id)))
+                                     ,(assignment-file-display a-id)))
           (div ([class "right"]) (div ([class "side-by-side-inner"])
-                ,@rhs))))
+                                      ,@rhs))))
 
   (define (format-grade default-grade)
     (show-grade
@@ -564,7 +564,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     `(span ([class ,(substring l 0 1)])
            ,(format "~a (~a)"
                     (format-% g)
-                    l)))  
+                    l)))
 
   (define (page/assignment/self/edit req a-id)
     (define assignment (id->assignment a-id))
@@ -573,7 +573,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             (cons "Assignments" #f)
             (cons a-id #f)
             (cons "Self Evaluation" #f)
-            (cons "Edit" #f)))    
+            (cons "Edit" #f)))
 
     (define (overdue-or thunk)
       (if (<= (assignment-eval-secs assignment) (current-seconds))
@@ -590,9 +590,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          (unless
              (file-exists? (assignment-question-student-grade-path a-id i))
            (define answer
-             (grade-question 
+             (grade-question
               (current-user) a-id question i
               #:breadcrumb the-breadcrumb
+              #:last? #t
               #:their? #f))
            (overdue-or
             (λ ()
@@ -610,26 +611,26 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (define-values (html pos)
       (for/fold ([html empty] [pos 0])
           ([pos-pair positions])
-        (values 
-         (append 
-          html 
-          (list 
+        (values
+         (append
+          html
+          (list
            (substring s pos (car pos-pair))
            `(a ([class "line-link"]
-                [href 
-                 ,(format "#LC~a" 
+                [href
+                 ,(format "#LC~a"
                           (substring
-                           (string-upcase 
-                            (substring s 
+                           (string-upcase
+                            (substring s
                                        (car pos-pair)
                                        (cdr pos-pair)))
                            1))])
                ,(substring s (car pos-pair) (cdr pos-pair)))))
          (cdr pos-pair))))
     `(p ([class "comment"])
-      ,@html ,(substring s pos (string-length s))))
+        ,@html ,(substring s pos (string-length s))))
 
-  (define (format-answer which ans)    
+  (define (format-answer which ans)
     (cond
       [ans
        `(div ([class ,(format "answer ~a" which)])
@@ -641,7 +642,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                               "Yes"
                               "No")]
                            [(answer:numeric _ _ value)
-                            (format-% value)])))             
+                            (format-% value)])))
              ,(string->linked-html (answer-comments ans)))]
       [else
        `(div ([class ,(format "answer incomplete ~a" which)])
@@ -651,7 +652,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (define assignment (id->assignment a-id))
     (parameterize ([current-user (or peer (current-user))])
       (define optional-enable? (is-optional-enabled?))
-      (side-by-side-render 
+      (side-by-side-render
        a-id
        (for/list ([q (in-list (assignment-questions assignment))]
                   [i (in-naturals)])
@@ -671,16 +672,16 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                ,(format-answer
                  (if peer "Your" "Peer's")
                  (assignment-question-peer-grade a-id i)))))))
-    
-  
+
+
   (define (page/assignment/self req a-id)
     (define assignment (id->assignment a-id))
     (template
-     #:breadcrumb 
+     #:breadcrumb
      (list (cons "Home" (main-url page/main))
-            (cons "Assignments" #f)
-            (cons a-id #f)
-            (cons "Self Evaluation" #f))
+           (cons "Assignments" #f)
+           (cons a-id #f)
+           (cons "Self Evaluation" #f))
      (page/assignment/generalized/html a-id)))
 
   (define (page/assignment/peer req a-id)
@@ -697,7 +698,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        `(div ([class "notice"]) "Your peer has not been assigned."))
       (template
        #:breadcrumb the-breadcrumb
-       (page/assignment/generalized/html a-id #:peer peer))))  
+       (page/assignment/generalized/html a-id #:peer peer))))
 
   (define (page/assignment/peer/edit req a-id)
     (define assignment (id->assignment a-id))
@@ -706,7 +707,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             (cons "Assignments" #f)
             (cons a-id #f)
             (cons "Peer Evaluation" #f)
-            (cons "Edit" #f)))    
+            (cons "Edit" #f)))
 
     (define (pick-a-person a-id)
       (define student-ids (users))
@@ -732,12 +733,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
            (match (shuffle finished-self-eval)
              [(list* peer _)
               peer]
-             [(list)              
+             [(list)
               (send/back
                (template
                 #:breadcrumb the-breadcrumb
                 "Peer evaluation is impossible, as no peers are available."))])]))
-      (display-to-file* the-peer (assignment-peer-path a-id))        
+      (display-to-file* the-peer (assignment-peer-path a-id))
       the-peer)
 
     (define peer-id
@@ -756,7 +757,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (overdue-or
      (λ ()
        (for ([question (assignment-questions assignment)]
-             [i (in-naturals)])         
+             [i (in-naturals)])
          (when
              (and
               ;; I have not yet graded
@@ -766,13 +767,13 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
               ;; They have grade
               (file-exists?
                (parameterize ([current-user peer-id])
-                  (assignment-question-student-grade-path a-id i))))
+                 (assignment-question-student-grade-path a-id i))))
            (define grade
              (grade-question
               peer-id a-id question i
               #:peer? #t
               #:breadcrumb
-              (list (cons "Home" (main-url page/root)) 
+              (list (cons "Home" (main-url page/root))
                     (cons "Assignments" #f)
                     (cons a-id #f)
                     (cons "Peer Evaluation" #f)
@@ -785,27 +786,42 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
        (template
         #:breadcrumb the-breadcrumb
-        "Peer evaluation completed, or not available (as peer has not finished their grading.)"))))  
+        "Peer evaluation completed, or not available (as peer has not finished their grading.)"))))
 
   (define (grade-question stu a-id question i
                           #:breadcrumb bc
                           #:their? [their? #t]
+                          #:last? [last? #f]
                           #:peer? [peer? #f]
                           #:extra [extra empty])
-    
+
+    (define last-i
+      (and last?
+           (for/or ([j (in-range i -1 -1)])
+             (define g
+               (parameterize ([current-user stu])
+                 (assignment-question-student-grade a-id j)))
+             (and g
+                  (not (string=? "" (answer-comments g)))
+                  j))))
+    (define last
+      (and last-i
+           (parameterize ([current-user stu])
+             (assignment-question-student-grade a-id last-i))))
+
     (match (parameterize ([current-user stu])
              (assignment-question-student-grade a-id i))
       [(answer:bool _ _ #f)
        (answer:bool (current-seconds) "" #f)]
       [_
-       
+
        (define boolean-formlet
          (formlet
           (p ,{(radio-group '(#t #f)
                             #:checked? (λ (x) x)
                             #:display (λ (x) (if x "Yes" "No")))
                . => . credit})
-          credit))   
+          credit))
 
        (define request
          (send/suspend
@@ -816,23 +832,29 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                (side-by-side-render
                 #:sticky? #t
                 a-id
-                (append 
+                (append
                  extra
-                 (list 
+                 (list
+                  (if last
+                    (format-answer
+                     "Last answer"
+                     (parameterize ([current-user stu])
+                       (assignment-question-student-grade a-id last-i)))
+                    "")
                   `(p ,(question-prompt question)
                       ,(format " (~a)" i))
                   (if their?
-                    (format-answer 
-                     "Their" 
+                    (format-answer
+                     "Their"
                      (parameterize ([current-user stu])
                        (assignment-question-student-grade a-id i)))
                     "")
                   (if peer?
                     (format-answer
-                     "Peer" 
+                     "Peer"
                      (parameterize ([current-user stu])
                        (assignment-question-peer-grade a-id i)))
-                    "")        
+                    "")
                   (if their?
                     `(p "What do you think they earned?")
                     "")
@@ -870,18 +892,21 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                          (p "Provide evidence to justify that score.")
                          (textarea ([name "comments"]
                                     [rows "8"]
-                                    [cols "60"]))
+                                    [cols "60"])
+                                   ,(if last
+                                      (answer-comments last)
+                                      ""))
                          (p "(If you need to refer to line numbers, prefix a number with L. For example, use L32 or l32 to refer to line 32)"))))))))))
 
        (define bs
          (request-bindings/raw request))
        (define comment
          (bytes->string/utf-8
-          (binding:form-value 
+          (binding:form-value
            (bindings-assq #"comments" bs))))
-       (define score 
-         (match 
-             (binding:form-value 
+       (define score
+         (match
+             (binding:form-value
               (bindings-assq #"submit" bs))
            [(or #"Yes" #"bool_Y")
             #t]
@@ -896,7 +921,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
            [(or #"Other" #"num_input")
             (string->number
              (bytes->string/utf-8
-              (binding:form-value 
+              (binding:form-value
                (bindings-assq #"numeric" bs))))]))
 
        ((match (question-type question)
@@ -912,12 +937,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (string-split (bytes->string/utf-8 (file->bytes file-path))
                     #px"\r\n?|\n"
                     #:trim? #f))
-    (values 
+    (values
      `(div ([class "file"])
            (div ([class "meta"]) ,(format "~a" (path->last-part file-path)))
-           (div 
+           (div
             ([class "data type-text"])
-            (table 
+            (table
              ([class "lines"]
               [cellspacing "0"]
               [cellpadding "0"])
@@ -929,7 +954,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                        (td (pre ,(number->string line-num)))
                        (td (pre ,line))))))))
      (+ line-offset (length file-lines))))
-    
+
   (define (page/logout req)
     (redirect-to
      (main-url page/root)
@@ -937,26 +962,26 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
      (list (cookie->header logout-id-cookie))))
 
   (define (secs->time-text secs)
-      (define s 
-        (if (secs . <= . 1)
-          1
-          secs))
-      (when (s . < . 0)
-        (set! s 1))
-      (define unit
-        (findf (λ (unit-pair) (s . >= . (car unit-pair)))
-               `((,(* 60 60 24 7) . "week")
-                 (,(* 60 60 24) . "day")
-                 (,(* 60 60) . "hour")
-                 (60 . "minute")
-                 (1 . "second"))))
-      (format "~a ~a~a"
-              (quotient s (car unit))
-              (cdr unit)
-              (if (= 1 (quotient s (car unit)))
-                ""
-                "s")))
-  
+    (define s
+      (if (secs . <= . 1)
+        1
+        secs))
+    (when (s . < . 0)
+      (set! s 1))
+    (define unit
+      (findf (λ (unit-pair) (s . >= . (car unit-pair)))
+             `((,(* 60 60 24 7) . "week")
+               (,(* 60 60 24) . "day")
+               (,(* 60 60) . "hour")
+               (60 . "minute")
+               (1 . "second"))))
+    (format "~a ~a~a"
+            (quotient s (car unit))
+            (cdr unit)
+            (if (= 1 (quotient s (car unit)))
+              ""
+              "s")))
+
   (define (page/main req)
     (when (is-admin?)
       (page/root req))
@@ -978,7 +1003,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     ;; TODO base off which phases they can still do
     (define-values (past upcoming)
       (partition
-       (λ (a) 
+       (λ (a)
          (if (assignment-peer-secs a)
            (or (peer-eval-completed? a)
                (> (current-seconds) (assignment-peer-secs a)))
@@ -987,7 +1012,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        assignments))
 
     (define optional-enable? (is-optional-enabled?))
-   
+
     ;; TODO render offline assignments (like the final) differently
     (define (render-assignment a)
       (define next-due
@@ -1004,7 +1029,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           [else
            (assignment-due-secs a)]))
 
-      `(table 
+      `(table
         ([class ,(format "assignment ~a ~a"
                          (cond
                            [(not (zero? (assignment-optional-weight a)))
@@ -1032,11 +1057,11 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                          (not (prof-eval-completed? a)))
                     "Completed, waiting on professor evaluation."]
                    [else
-                   `(span "Completed: "
-                          ,(format-%
-                            (compute-assignment-grade/id 
-                             (assignment-id a)
-                             0)))])))
+                    `(span "Completed: "
+                           ,(format-%
+                             (compute-assignment-grade/id
+                              (assignment-id a)
+                              0)))])))
         (tr (td ,(cond-hyperlink
                   #f
                   (current-seconds) (assignment-due-secs a)
@@ -1093,69 +1118,69 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          (define files (assignment-files a-id))
          (define closed? (< seconds-left 0))
          (template
-          #:breadcrumb (list (cons "Home" (main-url page/main)) 
+          #:breadcrumb (list (cons "Home" (main-url page/main))
                              (cons "Assignments" #f)
                              (cons a-id #f)
                              (cons "Files" #f))
           (side-by-side-render
            a-id
-           (list*            
+           (list*
             `(p ([class "notice"])
                 ,(format "File Management for ~a ~a" a-id
                          (if closed?
-                             "is closed"
-                             (format "closes in ~a" 
-                                     (secs->time-text seconds-left)))))
+                           "is closed"
+                           (format "closes in ~a"
+                                   (secs->time-text seconds-left)))))
             (if (empty? files)
-                `(p ([class "notice"]) "No files uploaded yet for this assignment")
-                `(table ([class "upload-table"])
-                        (tr (th "Filename") (th "Delete?"))
-                        ,@(map
-                           (λ (filename)
-                             `(tr (td ,filename)
-                                  (td ,(if closed? 
-                                           "X"
-                                           `(a ([href ,(main-url 
-                                                        page/assignment/files/delete a-id
-                                                        filename)])
-                                               "X")))))
-                           files)))
+              `(p ([class "notice"]) "No files uploaded yet for this assignment")
+              `(table ([class "upload-table"])
+                      (tr (th "Filename") (th "Delete?"))
+                      ,@(map
+                         (λ (filename)
+                           `(tr (td ,filename)
+                                (td ,(if closed?
+                                       "X"
+                                       `(a ([href ,(main-url
+                                                    page/assignment/files/delete a-id
+                                                    filename)])
+                                           "X")))))
+                         files)))
             (if closed?
-                empty
-                (list 
-                 `(form ([action ,k-url]
-                         [method "post"]
-                         [enctype "multipart/form-data"])
-                        (input ([type "file"]
-                                [name "new-file"]))
-                        nbsp
-                        (input ([type "submit"]
-                                [value "Upload File"])))
-                 `(br)
-                 `(form ([action ,k-url]
-                         [method "post"])
-                        (p "Filename: "
-                           (input ([type "text"]
-                                   [name "filename"])))
-                        (p (textarea ([name "file-content"]
-                                      [rows "20"]
-                                      [cols "60"])))
-                        (p (input ([type "submit"]
-                                   [value "Add File"]))))))))))))
+              empty
+              (list
+               `(form ([action ,k-url]
+                       [method "post"]
+                       [enctype "multipart/form-data"])
+                      (input ([type "file"]
+                              [name "new-file"]))
+                      nbsp
+                      (input ([type "submit"]
+                              [value "Upload File"])))
+               `(br)
+               `(form ([action ,k-url]
+                       [method "post"])
+                      (p "Filename: "
+                         (input ([type "text"]
+                                 [name "filename"])))
+                      (p (textarea ([name "file-content"]
+                                    [rows "20"]
+                                    [cols "60"])))
+                      (p (input ([type "submit"]
+                                 [value "Add File"]))))))))))))
     (define new-file-binding
       (cond
-        [(bindings-assq #"new-file" 
+        [(bindings-assq #"new-file"
                         (request-bindings/raw new-file-request))
          => (λ (x) x)]
         [else
          (define bs (request-bindings/raw new-file-request))
          (binding:file
-          #"new-file"          
-          (binding:form-value 
-            (bindings-assq #"filename" bs))
+          #"new-file"
+          (binding:form-value
+           (bindings-assq #"filename" bs))
           empty
-          (binding:form-value 
-            (bindings-assq #"file-content" bs)))]))
+          (binding:form-value
+           (bindings-assq #"file-content" bs)))]))
 
     (define file-content (binding:file-content new-file-binding))
     (when (contains-greater-than-80-char-line? file-content)
@@ -1164,10 +1189,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (make-directory* (assignment-file-path a-id))
     (when (< (current-seconds) (assignment-due-secs assignment))
       (display-to-file #:exists 'replace
-       file-content
-       (build-path (assignment-file-path a-id)
-                   (bytes->string/utf-8
-                    (binding:file-filename new-file-binding)))))
+                       file-content
+                       (build-path (assignment-file-path a-id)
+                                   (bytes->string/utf-8
+                                    (binding:file-filename new-file-binding)))))
     (redirect-to (main-url page/assignment/files a-id)))
 
   (define jquery-url
@@ -1176,7 +1201,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (template #:breadcrumb bc
                     . bodies)
     (response/xexpr
-     `(html 
+     `(html
        (head (title ,@(add-between (map car bc) " > "))
              (script ([src "/sorttable.js"]) " ")
              (script ([src ,jquery-url]) " ")
@@ -1190,7 +1215,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
              ,@(for/list ([b (in-list bc)]
                           [i (in-naturals)])
                  (match-define (cons name url) b)
-                 (cond 
+                 (cond
                    [url
                     `(span (a ([href ,url]) ,name) " / ")]
                    [(= i (sub1 (length bc)))
@@ -1216,17 +1241,17 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (define user-email
         (student-email (student-info student)))
       (if (file-exists? user-img-path)
-          (response/full
-           200 #"Okay"
-           (current-seconds) #"image/jpg"
-           empty
-           (list (file->bytes user-img-path)))
-          (redirect-to
-           (format "http://www.gravatar.com/avatar/~a?s=160&d=mm"
-                   (md5 (string-downcase (string-trim-both user-email))))))))
+        (response/full
+         200 #"Okay"
+         (current-seconds) #"image/jpg"
+         empty
+         (list (file->bytes user-img-path)))
+        (redirect-to
+         (format "http://www.gravatar.com/avatar/~a?s=160&d=mm"
+                 (md5 (string-downcase (string-trim-both user-email))))))))
 
   (define (user-info-complete?)
-    (match-define (student nick first last email) 
+    (match-define (student nick first last email)
                   (student-info (current-user)))
     (and (not (string=? nick ""))
          (not (string=? first ""))
@@ -1234,7 +1259,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          (not (string=? email ""))
          (file-exists? (user-image-path))))
 
-  (define (student-info u) 
+  (define (student-info u)
     (parameterize ([current-user u])
       (define p (user-info-path))
       (if (file-exists? p)
@@ -1256,7 +1281,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (match
         (for*/or ([a (in-list assignments)]
                   [u (in-list (users))]
-                  #:when 
+                  #:when
                   (parameterize ([current-user u])
                     (self-eval-completed? a))
                   #:unless
@@ -1272,25 +1297,25 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         (for/or ([q (in-list qs)]
                  [i (in-naturals)]
                  #:unless
-                 (file-exists?       
+                 (file-exists?
                   (parameterize ([current-user u])
                     (assignment-question-prof-grade-path id i))))
           (cons q i)))
 
        (define ans
-         (grade-question 
+         (grade-question
           u id q i
-          #:breadcrumb 
+          #:breadcrumb
           (list (cons "Professor" (main-url page/admin))
                 (cons "Grading" #f)
                 (cons (student-display-name u) #f)
                 (cons id #f))
           #:peer? #t
-          #:extra 
-          (list 
+          #:extra
+          (list
            `(div ([class "student-info"])
                  (img ([src ,(main-url page/student/photo u)]
-                       [height "160"])) 
+                       [height "160"]))
                  (br)
                  ,(student-display-name u)))))
 
@@ -1306,12 +1331,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       [#f
        (send/back
         (template
-         #:breadcrumb (list (cons "Professor" (main-url page/admin)) 
+         #:breadcrumb (list (cons "Professor" (main-url page/admin))
                             (cons "Grading" #f))
          "All grading is done! Great!"))]))
 
   (define (class-average-table)
-    (define mins 
+    (define mins
       (map (λ (u)
              (parameterize ([current-user u])
                (compute-grade 0)))
@@ -1322,7 +1347,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (map (λ (min-grade)
              (/ min-grade max-so-far))
            mins))
-    (define maxs 
+    (define maxs
       (map (λ (u)
              (parameterize ([current-user u])
                (compute-grade 1)))
@@ -1368,7 +1393,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (page/admin req)
     (unless (is-admin?)
       (page/root req))
-    
+
     (define max-so-far
       (maximum-grade-so-far))
 
@@ -1379,34 +1404,34 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             (a ([href ,(main-url page/admin/grade-next)]) "Grade"))
       (class-average-table)
       `(table ([id "grades"])
-        (thead
-         (tr (th "Student")
-             (th "Min")
-             (th "So Far")
-             (th "Max")
-             (th "Ungraded")))
-        (tbody
-         ,@(for/list ([u (in-list (sorted-users))])
-             (parameterize ([current-user u])
-               (define min-grade (compute-grade 0))
+              (thead
+               (tr (th "Student")
+                   (th "Min")
+                   (th "So Far")
+                   (th "Max")
+                   (th "Ungraded")))
+              (tbody
+               ,@(for/list ([u (in-list (sorted-users))])
+                   (parameterize ([current-user u])
+                     (define min-grade (compute-grade 0))
 
-               `(tr 
-                 (td ,(student-display-name u)
-                     " "
-                     "("
-                     (a ([href ,(format "mailto:~a"
-                                        (student-email (student-info u)))])
-                        ,u)
-                     ")")
-                 (td ,(show-grade min-grade))
-                 (td ,(show-grade (/ min-grade max-so-far)))
-                 (td ,(format-grade 1))
-                 (td
-                  ,@(for/list
-                        ([a (in-list assignments)]
-                         #:when (self-eval-completed? a)
-                         #:unless (prof-eval-completed? a))
-                      (format "~a " (assignment-id a))))))))))))
+                     `(tr
+                       (td ,(student-display-name u)
+                           " "
+                           "("
+                           (a ([href ,(format "mailto:~a"
+                                              (student-email (student-info u)))])
+                              ,u)
+                           ")")
+                       (td ,(show-grade min-grade))
+                       (td ,(show-grade (/ min-grade max-so-far)))
+                       (td ,(format-grade 1))
+                       (td
+                        ,@(for/list
+                              ([a (in-list assignments)]
+                               #:when (self-eval-completed? a)
+                               #:unless (prof-eval-completed? a))
+                            (format "~a " (assignment-id a))))))))))))
 
   (define ((make-prof-eval-completed? assignment-question-prof-grade-path)
            a)
@@ -1436,8 +1461,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           (a ([href "http://trevoroakes.com/"]) "Trevor Oakes") " and "
           "BYU PLT."
           (br)
-          (span ([id "timestamp"]) 
-                ,(date->string (seconds->date (current-seconds)) #t))))  
+          (span ([id "timestamp"])
+                ,(date->string (seconds->date (current-seconds)) #t))))
 
   (define (require-login-then-dispatch req)
     (cond
