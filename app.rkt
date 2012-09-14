@@ -660,7 +660,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          `(div ([class "answers"])
                (p (span ([class "weight"])
                         ,(format-% (+ nw ow-p)))
-                  ,prompt)
+                  ,prompt
+                  ,(format " (~a)" i))
                ,(format-answer
                  (if peer "Peer's Self" "Self")
                  (assignment-question-student-grade a-id i))
@@ -818,7 +819,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                 (append 
                  extra
                  (list 
-                  `(p ,(question-prompt question))
+                  `(p ,(question-prompt question)
+                      ,(format " (~a)" i))
                   (if their?
                     (format-answer 
                      "Their" 
