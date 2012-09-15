@@ -667,16 +667,27 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        (for/list ([q (in-list (assignment-questions assignment))]
                   [i (in-naturals)])
          (define (delete-file-url pth)
+           (define (okay?)
+             (and 
+              (< (current-seconds)
+                 (if peer
+                   (assignment-peer-secs assignment)
+                   (assignment-eval-secs assignment)))
+              (file-exists? pth)
+              (not
+               (file-exists?
+                (assignment-question-prof-grade-path a-id i)))))
            (and
-            (file-exists? pth)
-            (not (file-exists? (assignment-question-prof-grade-path a-id i)))
+            (okay?)
             (embed/url
              (λ (req)
                (and
-                (file-exists? pth)
-                (not (file-exists? (assignment-question-prof-grade-path a-id i)))
+                (okay?)
                 (delete-file pth)
-                (redirect-to (main-url page/main)))))))
+                (redirect-to 
+                 (if peer
+                   (main-url page/assignment/peer/edit a-id)
+                   (main-url page/assignment/self/edit a-id))))))))
          (define different?
            (answer-different? (assignment-question-prof-grade a-id i)
                               (if peer
