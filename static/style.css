@@ -222,6 +222,26 @@ table#grades tr td:nth-child(2), table#grades tr td:nth-child(3), table#grades t
     text-align: right;
 }
 
+table#assignments {
+    width: 100%;
+}
+
+table#assignments thead tr {
+    background: #FFCC66;
+}
+
+table#assignments tbody tr:nth-child(2n) {
+    background: #F5F5DC;
+}
+
+table#assignments th {
+    text-align: right;
+}
+
+table#assignments tr td {
+    text-align: right;
+}
+
 table.assignment td:nth-child(3) {
     text-align: right;
 }

@@ -126,7 +126,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (page/root req)
     (send/back
      (if (is-admin?)
-       (redirect-to (main-url page/admin))
+       (redirect-to (main-url page/admin/students))
        (redirect-to (main-url page/main)))))
 
   (define (page/login req [last-error #f])
@@ -237,8 +237,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       page/root]
      [("main")
       page/main]
-     [("admin")
-      page/admin]
+     [("admin" "students")
+      page/admin/students]
+     [("admin" "assignments")
+      page/admin/assignments]
      [("admin" "grade-next")
       page/admin/grade-next]
      [("login")
@@ -1366,7 +1368,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          (grade-question
           u id q i
           #:breadcrumb
-          (list (cons "Professor" (main-url page/admin))
+          (list (cons "Professor" #f)
+                (cons "Students" (main-url page/admin/students))
                 (cons "Grading" #f)
                 (cons (student-display-name u) #f)
                 (cons id #f))
@@ -1391,7 +1394,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       [#f
        (send/back
         (template
-         #:breadcrumb (list (cons "Professor" (main-url page/admin))
+         #:breadcrumb (list (cons "Professor" #f)
+                            (cons "Students" (main-url page/admin/students))                
                             (cons "Grading" #f))
          "All grading is done! Great!"))]))
 
@@ -1450,7 +1454,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (list-max l)
     (apply max l))
 
-  (define (page/admin req)
+  (define (page/admin/students req)
     (unless (is-admin?)
       (page/root req))
 
@@ -1459,9 +1463,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
     (send/back
      (template
-      #:breadcrumb (list (cons "Professor" #f))
-      `(div ([id "grade-button"])
-            (a ([href ,(main-url page/admin/grade-next)]) "Grade"))
+      #:breadcrumb (list (cons "Professor" #f)
+                         (cons "Students" #f))
+      admin-buttons
       (class-average-table)
       `(table ([id "grades"])
               (thead
@@ -1492,6 +1496,92 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                #:when (self-eval-completed? a)
                                #:unless (prof-eval-completed? a))
                             (format "~a " (assignment-id a))))))))))))
+
+  (define admin-buttons
+    `(div ([id "grade-button"])
+          (a ([href ,(main-url page/admin/students)]) "Students")
+          nbsp
+          (a ([href ,(main-url page/admin/assignments)]) "Assignments")
+          nbsp
+          (a ([href ,(main-url page/admin/grade-next)]) "Grade")))
+
+  (define (page/admin/assignments req)
+    (unless (is-admin?)
+      (page/root req))
+
+    (define now (current-seconds))
+
+    (send/back
+     (template
+      #:breadcrumb 
+      (list (cons "Professor" #f)
+            (cons "Assignments" #f))
+      admin-buttons
+      (class-average-table)
+      `(table 
+        ([id "assignments"])
+        (thead
+         (tr (th "Assignment")
+             (th "Turn-in")
+             (th "Self-eval")
+             (th "Prof-eval")
+             (th "Min")
+             (th "Mean")
+             (th "Median")
+             (th "Max")))
+        (tbody
+         ,@(for/list ([a (in-list assignments)])
+             (define a-id (assignment-id a))
+             (define turned-in-files
+               (for/list ([u (in-list (users))]
+                          #:unless
+                          (empty?
+                           (parameterize ([current-user u])
+                             (assignment-files a-id))))
+                 u))
+             (define (did-self-eval-completed)
+               (for/list ([u (in-list (users))]
+                          #:when
+                          (parameterize ([current-user u])
+                             (self-eval-completed? a)))
+                 u))
+             (define (did-prof-eval-completed)
+               (for/list ([u (in-list (users))]
+                          #:when
+                          (parameterize ([current-user u])
+                             (prof-eval-completed? a)))
+                 u))                          
+             (cond
+               [(< now (assignment-due-secs a))
+                `(tr (td ,a-id)
+                     (td ,(number->string (length turned-in-files)))
+                     (td ([colspan "7"]) ""))]
+               [(< now (assignment-eval-secs a))
+                `(tr (td ,a-id)
+                     (td ,(number->string (length turned-in-files)))
+                     (td ,(number->string 
+                           (length (did-self-eval-completed))))
+                     (td ([colspan "6"]) ""))]
+               [else
+                (define (normalize g)
+                  (define w 
+                    (+ (assignment-normal-weight a)
+                       (assignment-optional-weight a)))
+                  (if (zero? w)
+                    1
+                    (/ g w)))
+                (define grades
+                  (for/list ([u (in-list (users))])
+                    (normalize (parameterize ([current-user u])
+                                 (compute-assignment-grade a 0)))))
+                `(tr
+                  (td ,a-id)
+                  (td ,(number->string (length turned-in-files)))
+                  (td ,(number->string 
+                           (length (did-self-eval-completed))))
+                  (td ,(number->string 
+                           (length (did-prof-eval-completed))))
+                  ,@(rest (fourth (stat-table grades))))])))))))
 
   (define ((make-prof-eval-completed? assignment-question-prof-grade-path)
            a)
