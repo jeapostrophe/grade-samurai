@@ -471,7 +471,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (max 0 pre-score)
       pre-score))
 
-  (define (compute-assignment-grade a default-grade)
+  (define (compute-assignment-grade^ a default-grade)
     (define optional-enable?
       (is-optional-enabled?))
     (define base
@@ -483,6 +483,11 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (if optional-enable?
       base
       (min 1 base)))
+
+  (define (compute-assignment-grade a default-grade)
+    (GRADE-CACHE-USE 
+     (list a default-grade)
+     (λ () (compute-assignment-grade^ a default-grade))))
 
   (define (compute-assignment-grade/id a-id default-grade)
     (define a (id->assignment a-id))
@@ -529,12 +534,16 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             (loop)])))))
   (define (GRADE-CACHE-CLEAR!)
     (hash-remove! GRADE-CACHE (current-user)))
-  (define (compute-grade dg)
+  (define (GRADE-CACHE-USE path t)
     (define user-ht
       (hash-ref! GRADE-CACHE (current-user)
                  (λ () (make-hash))))
-    (hash-ref! user-ht dg
-               (λ () (compute-grade* dg))))
+    (hash-ref! user-ht path t))
+
+  (define (compute-grade dg)
+    (GRADE-CACHE-USE 
+     (list #f dg)
+     (λ () (compute-grade* dg))))
 
   (define (assignment-file-display a-id)
     (define-values (html end-line-number)
