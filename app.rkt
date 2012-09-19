@@ -883,9 +883,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
     (match (parameterize ([current-user stu])
              (assignment-question-student-grade a-id i))
-      [(or (and #f
-                (app (λ _ last?) #f))
-           (answer:bool _ _ #f))
+      [(answer:bool _ _ #f)
        (answer:bool (current-seconds) "" #f)]
       [_
 
@@ -1352,17 +1350,13 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         #:breadcrumb (list (cons "Professor" (main-url page/main))
                            (cons "Grading" #f))
         "Only the admin can view this page.")))
-
-    (define now
-      (current-seconds))
     ;; XXX CLEANUP Mimic this structure for students self & peer
     (match
         (for*/or ([a (in-list assignments)]
                   [u (in-list (users))]
                   #:when
-                  (or (< (assignment-eval-secs a) now)
-                      (parameterize ([current-user u])
-                        (self-eval-completed? a)))
+                  (parameterize ([current-user u])
+                    (self-eval-completed? a))
                   #:unless
                   (parameterize ([current-user u])
                     (prof-eval-completed? a)))
@@ -1406,7 +1400,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          (parameterize ([current-user (assignment-peer id)])
            (GRADE-CACHE-CLEAR!)))
 
-       (page/admin/grade-next req)]
+       (redirect-to
+        (main-url page/admin/grade-next))]
       [#f
        (send/back
         (template
