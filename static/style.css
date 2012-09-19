@@ -242,6 +242,35 @@ table#assignments tr td {
     text-align: right;
 }
 
+table.adetails thead tr {
+    background: #FFCC66;
+}
+
+table.adetails tbody tr:nth-child(2n) {
+    background: #F5F5DC;
+}
+
+table.adetails th {
+    text-align: right;
+}
+
+table.adetails tr th:nth-child(7), table.adetails tr td:nth-child(7), table.adetails tr td:nth-child(2), table.adetails tr th:nth-child(2) {
+    text-align: left;
+}
+
+table.adetails tr td {
+    text-align: right;
+}
+
+span.adeets span.per {
+    font-weight: bold;
+    margin-right: 1em;
+}
+
+span.adeets span.count {
+    margin-right: 1em;
+}
+
 table.assignment td:nth-child(3) {
     text-align: right;
 }

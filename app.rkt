@@ -1482,7 +1482,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                          (cons "Students" #f))
       admin-buttons
       (class-average-table)
-      `(table ([id "grades"])
+      `(table ([id "grades"] [class "sortable"])
               (thead
                (tr (th "Student")
                    (th "Min")
@@ -1533,7 +1533,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             (cons "Assignments" (main-url page/admin/assignments))
             (cons a-id #f))
       admin-buttons
-      `(table ([class "sortable"])
+      `(table ([class "adetails sortable"])
         (thead
          (tr
           (th "#")
@@ -1550,8 +1550,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
              (define gs
                (for/list ([u (in-list (users))])
-                 (parameterize ([current-user u])
-                   (compute-question-grade #t 0 a-id i q))))
+                 (/ (parameterize ([current-user u])
+                      (compute-question-grade #t 0 a-id i q))
+                    (+ nw ow))))
              (define grade->count
                (for/fold ([h (hash)])
                    ([g (in-list gs)])
@@ -1560,12 +1561,15 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                (sort (hash->list grade->count)
                      > #:key cdr))
              (define deets
-               (for/fold ([d ""])
+               (for/fold ([d empty])
                    ([g*c (in-list deets-l)])
-                 (format "~a ~a: ~a"
-                         d 
-                         (format-% (car g*c))
-                         (cdr g*c))))
+                 (append d
+                         (list 
+                          `(span ([class "adeets"])
+                                 (span ([class "per"])
+                                       ,(format-% (car g*c)))
+                                 (span ([class "count"])
+                                       ,(number->string (cdr g*c))))))))
 
              `(tr
                (td ,(format "~a" i))
@@ -1574,7 +1578,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                    ,(format-% (+ nw ow))
                    ")")
                ,@(rest (fourth (stat-table gs #f)))
-               (td ,deets))))))))
+               (td ,@deets))))))))
 
   (define (page/admin/assignments req)
     (unless (is-admin?)
