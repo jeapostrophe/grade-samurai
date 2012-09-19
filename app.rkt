@@ -241,6 +241,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       page/admin/students]
      [("admin" "assignments")
       page/admin/assignments]
+     [("admin" "assignments" (string-arg))
+      page/admin/assignments/view]
      [("admin" "grade-next")
       page/admin/grade-next]
      [("login")
@@ -1441,16 +1443,20 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                 (td ,(stat-table so-fars))
                 (td ,(stat-table maxs)))))
 
-  (define (stat-table l)
+  (define (stat-table l [format? #t])
+    (define format
+      (if format?
+        show-grade
+        format-%))
     `(table ([class "grade-stats"])
             (tr (th "Class Min")
                 (th "Mean")
                 (th "Median")
                 (th "Max"))
-            (tr (td ,(show-grade (list-min l)))
-                (td ,(show-grade (average l)))
-                (td ,(show-grade (median l)))
-                (td ,(show-grade (list-max l))))))
+            (tr (td ,(format (list-min l)))
+                (td ,(format (average l)))
+                (td ,(format (median l)))
+                (td ,(format (list-max l))))))
 
   (define (list-min l)
     (apply min l))
@@ -1514,6 +1520,62 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           nbsp
           (a ([href ,(main-url page/admin/grade-next)]) "Grade")))
 
+  (define (page/admin/assignments/view req a-id)
+    (unless (is-admin?)
+      (page/root req))
+
+    (define a (id->assignment a-id))
+
+    (send/back
+     (template
+      #:breadcrumb 
+      (list (cons "Professor" #f)
+            (cons "Assignments" (main-url page/admin/assignments))
+            (cons a-id #f))
+      admin-buttons
+      `(table ([class "sortable"])
+        (thead
+         (tr
+          (th "#")
+          (th "Prompt")
+          (th "Min")
+          (th "Mean")
+          (th "Median")
+          (th "Max")
+          (th "Deets")))
+        (tbody
+         ,@(for/list ([q (in-list (assignment-questions a))]
+                      [i (in-naturals)])
+             (match-define (question nw ow prompt type) q)
+
+             (define gs
+               (for/list ([u (in-list (users))])
+                 (parameterize ([current-user u])
+                   (compute-question-grade #t 0 a-id i q))))
+             (define grade->count
+               (for/fold ([h (hash)])
+                   ([g (in-list gs)])
+                 (hash-update h g add1 0)))
+             (define deets-l
+               (sort (hash->list grade->count)
+                     > #:key cdr))
+             (define deets
+               (for/fold ([d ""])
+                   ([g*c (in-list deets-l)])
+                 (format "~a ~a: ~a"
+                         d 
+                         (format-% (car g*c))
+                         (cdr g*c))))
+
+             `(tr
+               (td ,(format "~a" i))
+               (td ,prompt
+                   " ("
+                   ,(format-% (+ nw ow))
+                   ")")
+               ,@(rest (fourth (stat-table gs #f)))
+               (td ,deets))))))))
+
   (define (page/admin/assignments req)
     (unless (is-admin?)
       (page/root req))
@@ -1559,14 +1621,18 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                           #:when
                           (parameterize ([current-user u])
                              (prof-eval-completed? a)))
-                 u))                          
+                 u))            
+             (define a-link
+               `(a ([href ,(main-url page/admin/assignments/view
+                                     a-id)])
+                   ,a-id))
              (cond
                [(< now (assignment-due-secs a))
-                `(tr (td ,a-id)
+                `(tr (td ,a-link)
                      (td ,(number->string (length turned-in-files)))
                      (td ([colspan "7"]) ""))]
                [(< now (assignment-eval-secs a))
-                `(tr (td ,a-id)
+                `(tr (td ,a-link)
                      (td ,(number->string (length turned-in-files)))
                      (td ,(number->string 
                            (length (did-self-eval-completed))))
@@ -1584,7 +1650,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                     (normalize (parameterize ([current-user u])
                                  (compute-assignment-grade a 0)))))
                 `(tr
-                  (td ,a-id)
+                  (td ,a-link)
                   (td ,(number->string (length turned-in-files)))
                   (td ,(number->string 
                            (length (did-self-eval-completed))))
