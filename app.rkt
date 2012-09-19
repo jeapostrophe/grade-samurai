@@ -1400,8 +1400,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          (parameterize ([current-user (assignment-peer id)])
            (GRADE-CACHE-CLEAR!)))
 
-       (redirect-to
-        (main-url page/admin/grade-next))]
+       (page/admin/grade-next req)]
       [#f
        (send/back
         (template
