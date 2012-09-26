@@ -618,6 +618,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                answer
                (assignment-question-student-grade-path a-id i))))))
 
+       ;; XXX redirect to self eval view (and in the other place too)
        (template
         #:breadcrumb the-breadcrumb
         "Self evaluation completed."))))
@@ -1343,7 +1344,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (format "~a \"~a\" ~a"
             first nick last))
 
-  (define (page/admin/grade-next req)
+  (define (page/admin/grade-next req [redirect? #f])
     (unless (is-admin?)
       (send/back
        (template
@@ -1380,7 +1381,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           u id q i
           #:breadcrumb
           (list (cons "Professor" #f)
-                (cons "Students" (main-url page/admin/students))
+                (cons "Students" #f)
                 (cons "Grading" #f)
                 (cons (student-display-name u) #f)
                 (cons id #f))
@@ -1400,14 +1401,17 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          (parameterize ([current-user (assignment-peer id)])
            (GRADE-CACHE-CLEAR!)))
 
-       (page/admin/grade-next req)]
+       (page/admin/grade-next req #t)]
       [#f
-       (send/back
-        (template
-         #:breadcrumb (list (cons "Professor" #f)
-                            (cons "Students" (main-url page/admin/students))                
-                            (cons "Grading" #f))
-         "All grading is done! Great!"))]))
+       (if redirect?
+         (redirect-to (main-url page/admin/grade-next))
+         (send/back
+          (template
+           #:breadcrumb 
+           (list (cons "Professor" #f)
+                 (cons "Students" (main-url page/admin/students))
+                 (cons "Grading" #f))
+           "All grading is done! Great!")))]))
 
   (define (class-average-table)
     (define mins
