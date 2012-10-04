@@ -763,15 +763,21 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             (cons "Assignments" #f)
             (cons a-id #f)
             (cons "Peer Evaluation" #f)))
-    (if (equal? default-peer peer)
-      (template
-       #:breadcrumb the-breadcrumb
-       `(div ([class "notice"]) "Your peer has not been assigned."))
-      (send/suspend/dispatch
-       (λ (embed/url)
-         (template
-          #:breadcrumb the-breadcrumb
-          (page/assignment/generalized/html embed/url a-id #:peer peer))))))
+    (cond
+      [(equal? default-peer peer)
+       (template
+        #:breadcrumb the-breadcrumb
+        `(div ([class "notice"]) "Your peer has not been assigned."))]
+      [(not (peer-eval-completed? assignment))
+       (template
+        #:breadcrumb the-breadcrumb
+        `(div ([class "notice"]) "Your peer eval is incomplete."))]
+      [else
+       (send/suspend/dispatch
+        (λ (embed/url)
+          (template
+           #:breadcrumb the-breadcrumb
+           (page/assignment/generalized/html embed/url a-id #:peer peer))))]))
 
   (define (page/assignment/peer/edit req a-id)
     (define assignment (id->assignment a-id))
@@ -1462,15 +1468,19 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                 (td ,(format (list-max l))))))
 
   (define (list-min l)
-    (apply min l))
+    (apply min 1 l))
   (define (average l)
-    (/ (apply + l)
-       (length l)))
+    (if (empty? l)
+      0
+      (/ (apply + l)
+         (length l))))
   (define (median l)
-    (list-ref (sort l <)
-              (floor (/ (length l) 2))))
+    (if (empty? l)
+      0
+      (list-ref (sort l <)
+                (floor (/ (length l) 2)))))
   (define (list-max l)
-    (apply max l))
+    (apply max 0 l))
 
   (define (page/admin/students req)
     (unless (is-admin?)
@@ -1552,7 +1562,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
              (match-define (question nw ow prompt type) q)
 
              (define gs
-               (for/list ([u (in-list (users))])
+               (for/list ([u (in-list (users))]
+                          #:when 
+                             (parameterize ([current-user u])
+                               (self-eval-completed? a)))
                  (/ (parameterize ([current-user u])
                       (compute-question-grade #t 0 a-id i q))
                     (+ nw ow))))
@@ -1653,7 +1666,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                     1
                     (/ g w)))
                 (define grades
-                  (for/list ([u (in-list (users))])
+                  (for/list ([u (in-list (users))]
+                             #:when 
+                             (parameterize ([current-user u])
+                               (self-eval-completed? a)))
                     (normalize (parameterize ([current-user u])
                                  (compute-assignment-grade a 0)))))
                 `(tr
