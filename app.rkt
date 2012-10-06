@@ -1468,7 +1468,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                 (td ,(format (list-max l))))))
 
   (define (list-min l)
-    (apply min 1 l))
+    (if (empty? l)
+      1
+      (apply min l)))
   (define (average l)
     (if (empty? l)
       0
@@ -1480,7 +1482,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (list-ref (sort l <)
                 (floor (/ (length l) 2)))))
   (define (list-max l)
-    (apply max 0 l))
+    (if (empty? l)
+      0
+      (apply max l)))
 
   (define (page/admin/students req)
     (unless (is-admin?)
