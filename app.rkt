@@ -724,11 +724,23 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                  (assignment-question-student-grade a-id i))
                ,(format-answer
                  (if peer "Peer's Professor" "Professor")
-                 (assignment-question-prof-grade a-id i))
+                 (assignment-question-prof-grade a-id i))               
                ,(format-answer
                  #:delete? (and peer (delete-file-url (assignment-question-peer-grade-path a-id i)))
                  (if peer "Your" "Peer's")
-                 (assignment-question-peer-grade a-id i)))))))
+                 (assignment-question-peer-grade a-id i))
+               (a ([href ,(format "mailto:~a?subject=~a&body=~a"
+                                  "jay.mccarthy@gmail.com"
+                                  (format 
+                                   "330 - Dispute - ~a - ~a (~a) - ~a"
+                                   a-id
+                                   prompt
+                                   i
+                                   (if peer
+                                     "Peer"
+                                     "Self"))
+                                  "You jerk! I disagree with your evaluation of this question! Here's why:\n\n[FILL IN YOUR OBJECTION HERE]")])
+                  "Dispute!"))))))
 
   (define (answer-different? x y)
     (match* (x y)
@@ -1347,8 +1359,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         (student "" "" "" ""))))
   (define (student-display-name u)
     (match-define (student nick first last _) (student-info u))
-    (format "~a \"~a\" ~a"
-            first nick last))
+    (format "~a \"~a\" ~a (~a)"
+            first nick last u))
 
   (define (page/admin/grade-next req [redirect? #f])
     (unless (is-admin?)
@@ -1512,13 +1524,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                      (define min-grade (compute-grade 0))
 
                      `(tr
-                       (td ,(student-display-name u)
-                           " "
-                           "("
-                           (a ([href ,(format "mailto:~a"
-                                              (student-email (student-info u)))])
-                              ,u)
-                           ")")
+                       (td ,(student-display-name u))
                        (td ,(show-grade min-grade))
                        (td ,(show-grade (/ min-grade max-so-far)))
                        (td ,(format-grade 1))
