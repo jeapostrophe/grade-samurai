@@ -32,7 +32,7 @@
 
 (define (contains-greater-than-80-char-line? file-content)
   (for/or ([l (in-list (string->lines (bytes->string/utf-8 file-content)))])
-    ((string-length l) . >= . 80)))
+    ((string-length l) . > . 80)))
 
 (module+ test
   (require rackunit)
