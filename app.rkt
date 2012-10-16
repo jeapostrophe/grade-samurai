@@ -52,6 +52,71 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 ") #f))
 
+(define (newline->br s)
+  (define positions
+    (regexp-match-positions* #rx"\n" s))
+  (define-values (html pos)
+    (for/fold ([html empty] [pos 0])
+        ([pos-pair positions])
+      (values
+       (append
+        html
+        (list (substring s pos (car pos-pair))
+              '(br)))
+       (cdr pos-pair))))
+  (append html (list (substring s pos (string-length s)))))
+
+(define (string->linked-html s)
+  (define positions
+    (regexp-match-positions* #px"[l|L]\\d+" s))
+  (define-values (html pos)
+    (for/fold ([html empty] [pos 0])
+        ([pos-pair positions])
+      (values
+       (append
+        html
+        (newline->br (substring s pos (car pos-pair)))
+        (list           
+         `(a ([class "line-link"]
+              [href
+               ,(format "#LC~a"
+                        (substring
+                         (string-upcase
+                          (substring s
+                                     (car pos-pair)
+                                     (cdr pos-pair)))
+                         1))])
+             ,(substring s (car pos-pair) (cdr pos-pair)))))
+       (cdr pos-pair))))
+  `(p ([class "comment"])
+      ,@html ,@(newline->br (substring s pos (string-length s)))))
+
+(module+ test
+  (check-equal? 
+   (newline->br "foo\nbar")
+   (list "foo" '(br) "bar"))
+  (check-equal? 
+   (newline->br "foo\nbar\n")
+   (list "foo" '(br) "bar" '(br) ""))
+  (check-equal? 
+   (string->linked-html 
+    "L3 - You have a mistake here\n\nL55 - You have a mistake here until L67\n")
+   `(p ([class "comment"])
+       ""
+       (a ([class "line-link"]
+           [href "#LC3"])
+          "L3")
+       " - You have a mistake here"
+       (br) "" (br) ""
+       (a ([class "line-link"]
+           [href "#LC55"])
+          "L55")
+       " - You have a mistake here until "
+       (a ([class "line-link"]
+           [href "#LC67"])
+          "L67")
+       "" (br) "")))
+
 (define (make-parent-directory* p)
   (define parent (path-only p))
   (make-directory* parent))
@@ -621,32 +686,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        ;; XXX redirect to self eval view (and in the other place too)
        (template
         #:breadcrumb the-breadcrumb
-        "Self evaluation completed."))))
-
-  (define (string->linked-html s)
-    (define positions
-      (regexp-match-positions* #px"[l|L]\\d+" s))
-    (define-values (html pos)
-      (for/fold ([html empty] [pos 0])
-          ([pos-pair positions])
-        (values
-         (append
-          html
-          (list
-           (substring s pos (car pos-pair))
-           `(a ([class "line-link"]
-                [href
-                 ,(format "#LC~a"
-                          (substring
-                           (string-upcase
-                            (substring s
-                                       (car pos-pair)
-                                       (cdr pos-pair)))
-                           1))])
-               ,(substring s (car pos-pair) (cdr pos-pair)))))
-         (cdr pos-pair))))
-    `(p ([class "comment"])
-        ,@html ,(substring s pos (string-length s))))
+        "Self evaluation completed."))))  
 
   (define (format-answer which ans
                          #:delete? [delete? #f])
@@ -1661,7 +1701,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                 `(tr (td ,a-link)
                      (td ,(number->string (length turned-in-files)))
                      (td ([colspan "7"]) ""))]
-               [(< now (assignment-eval-secs a))
+               [(and #f (< now (assignment-eval-secs a)))
                 `(tr (td ,a-link)
                      (td ,(number->string (length turned-in-files)))
                      (td ,(number->string 
