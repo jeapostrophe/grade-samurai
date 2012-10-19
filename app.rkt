@@ -439,6 +439,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (is-optional-enabled?)
     (for/and ([a (in-list assignments)]
+              #:unless (equal? "wlang1" (assignment-id a))
               #:when (zero? (assignment-normal-weight a))
               #:when (zero? (assignment-optional-weight a)))
       (define a-id (assignment-id a))
