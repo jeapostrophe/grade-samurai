@@ -1571,7 +1571,13 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                         [(? list? l) (last l)]))
 
                      `(tr
-                       (td ,(student-display-name u))
+                       (td (a ([href 
+                                ,(format "mailto:~a"
+                                         (student-email 
+                                          (student-info u)))])
+                              "@")
+                           " "
+                           ,(student-display-name u))
                        (td ,(show-grade min-grade))
                        (td ,(show-grade (/ min-grade max-so-far)))
                        (td ,(format-grade 1))
