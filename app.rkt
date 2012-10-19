@@ -1558,17 +1558,29 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                    (th "Min")
                    (th "So Far")
                    (th "Max")
+                   (th "Last")
                    (th "Ungraded")))
               (tbody
                ,@(for/list ([u (in-list (sorted-users))])
                    (parameterize ([current-user u])
                      (define min-grade (compute-grade 0))
 
+                     (define last*
+                       (match-lambda
+                        [(list) "N/A"]
+                        [(? list? l) (last l)]))
+
                      `(tr
                        (td ,(student-display-name u))
                        (td ,(show-grade min-grade))
                        (td ,(show-grade (/ min-grade max-so-far)))
                        (td ,(format-grade 1))
+                       (td
+                        ,(last*
+                          (for/list
+                              ([a (in-list assignments)]
+                               #:when (self-eval-completed? a))
+                            (assignment-id a))))
                        (td
                         ,@(for/list
                               ([a (in-list assignments)]
