@@ -20,7 +20,7 @@
          file/md5
          (only-in srfi/13 string-trim-both)
          "model.rkt"
-         "../m8b/id-cookie.rkt")
+         web-server/http/id-cookie)
 
 (define DEBUG? #f)
 
@@ -178,12 +178,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (findf (λ (a) (string=? a-id (assignment-id a))) assignments))
 
   (define secret-salt
-    (begin
-      (unless (file-exists? secret-salt-path)
-        (display-to-file*
-         (list->bytes (build-list 128 (λ (i) (random 256))))
-         secret-salt-path))
-      (file->bytes secret-salt-path)))
+    (make-secret-salt/file secret-salt-path))
 
   (define (is-admin?)
     (eq? 'admin (current-user-type)))
@@ -229,10 +224,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                       (main-url page/root))
                     #:headers
                     (list (cookie->header
-                           (make-id-cookie secret-salt
-                                           (format "~a:~a"
-                                                   authenticated?
-                                                   username)))))]
+                           (make-id-cookie 
+                            "name"
+                            secret-salt
+                            (format "~a:~a"
+                                    authenticated?
+                                    username)))))]
       [else (page/login
              req
              (format "Invalid password for user (~S)" username))]))
@@ -1091,7 +1088,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (redirect-to
      (main-url page/root)
      #:headers
-     (list (cookie->header logout-id-cookie))))
+     (list (cookie->header (logout-id-cookie "name")))))
 
   (define (secs->time-text secs)
     (define s
@@ -1784,7 +1781,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (require-login-then-dispatch req)
     (cond
       [(main-applies? req)
-       (define maybe-id (request-valid-id-cookie secret-salt req))
+       (define maybe-id (request-id-cookie "name" secret-salt req))
        (match maybe-id
          [#f (page/login req)]
          [(regexp #rx"^(.+):(.+)$" (list _ (app string->symbol kind) id))
