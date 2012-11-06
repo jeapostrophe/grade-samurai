@@ -1185,7 +1185,11 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                      (secs->time-text (- next-due (current-seconds))))]
                    [(and (self-eval-completed? a)
                          (not (prof-eval-completed? a)))
-                    "Completed, waiting on professor evaluation."]
+                    `(span "Completed, waiting on professor evaluation ("
+                           ,(number->string (length (did-prof-eval-completed)))
+                           "/"
+                           ,(number->string (length (did-self-eval-completed)))
+                           ").")]
                    [else
                     `(span "Completed: "
                            ,(format-%
