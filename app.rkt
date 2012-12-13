@@ -155,6 +155,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          #:port port
          #:assignments pre-assignments
          #:authenticate authenticate-users
+         #:professor-email professor-email
          #:username-request-text login-formlet-un-text
          #:password-request-text login-formlet-pw-text)
 
@@ -785,7 +786,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                  (if peer "Your" "Peer's")
                  (assignment-question-peer-grade a-id i))
                (a ([href ,(format "mailto:~a?subject=~a&body=~a"
-                                  "jay.mccarthy@gmail.com"
+                                  professor-email
                                   (format
                                    "330 - Dispute - ~a - ~a (~a) - ~a"
                                    a-id
@@ -1831,6 +1832,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       #:port port-number?
       #:assignments (listof assignment?)
       #:authenticate (-> string? string? (or/c 'admin 'user #f))
+      #:professor-email string?
       #:username-request-text string?
       #:password-request-text string?
       void)])
