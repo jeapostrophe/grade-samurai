@@ -1293,28 +1293,34 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                                     filename)])
                                            "X")))))
                          files)))
-            (if closed?
-              empty
-              (list
-               `(form ([action ,k-url]
-                       [method "post"]
-                       [enctype "multipart/form-data"])
-                      (input ([type "file"]
-                              [name "new-file"]))
-                      nbsp
-                      (input ([type "submit"]
-                              [value "Upload File"])))
-               `(br)
-               `(form ([action ,k-url]
-                       [method "post"])
-                      (p "Filename: "
-                         (input ([type "text"]
-                                 [name "filename"])))
-                      (p (textarea ([name "file-content"]
-                                    [rows "20"]
-                                    [cols "60"])))
-                      (p (input ([type "submit"]
-                                 [value "Add File"]))))))))))))
+            (list
+             `(h1 "Upload a file from your computer:")
+             `(form ([action ,(if closed? "#" k-url)]
+                     [method "post"]
+                     [enctype "multipart/form-data"])
+                    (input ([type "file"]
+                            [name "new-file"]))
+                    nbsp
+                    (input ([type "submit"]
+                            [value "Upload File"]
+                            ,@(if closed?
+                                `([disabled "disabled"])
+                                `()))))
+             `(br)
+             `(h1 "Upload plain-text and give it a file name:")
+             `(form ([action ,(if closed? "#" k-url)]
+                     [method "post"])
+                    (p "Filename: "
+                       (input ([type "text"]
+                               [name "filename"])))
+                    (p (textarea ([name "file-content"]
+                                  [rows "20"]
+                                  [cols "60"])))
+                    (p (input ([type "submit"]
+                               [value "Add File"]
+                               ,@(if closed?
+                                   `([disabled "disabled"])
+                                   `()))))))))))))
     (define new-file-binding
       (cond
         [(bindings-assq #"new-file"
