@@ -76,7 +76,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        (append
         html
         (newline->br (substring s pos (car pos-pair)))
-        (list           
+        (list
          `(a ([class "line-link"]
               [href
                ,(format "#LC~a"
@@ -92,14 +92,14 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       ,@html ,@(newline->br (substring s pos (string-length s)))))
 
 (module+ test
-  (check-equal? 
+  (check-equal?
    (newline->br "foo\nbar")
    (list "foo" '(br) "bar"))
-  (check-equal? 
+  (check-equal?
    (newline->br "foo\nbar\n")
    (list "foo" '(br) "bar" '(br) ""))
-  (check-equal? 
-   (string->linked-html 
+  (check-equal?
+   (string->linked-html
     "L3 - You have a mistake here\n\nL55 - You have a mistake here until L67\n")
    `(p ([class "comment"])
        ""
@@ -150,6 +150,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 (define-runtime-path source-dir ".")
 
 (define (samurai-go!
+         #:closed? closed?
          #:db db-path
          #:port port
          #:assignments pre-assignments
@@ -219,20 +220,31 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
     (cond
       [authenticated?
-       (redirect-to (parameterize ([current-user username]
-                                   [current-user-type authenticated?])
-                      (main-url page/root))
-                    #:headers
-                    (list (cookie->header
-                           (make-id-cookie 
-                            "name"
-                            secret-salt
-                            (format "~a:~a"
-                                    authenticated?
-                                    username)))))]
-      [else (page/login
-             req
-             (format "Invalid password for user (~S)" username))]))
+       (cond
+         [(and closed?
+               (not
+                (directory-exists?
+                 (parameterize ([current-user username])
+                   (user-path)))))
+          (page/login
+           req
+           (format "The course is over, go away :)"))]
+         [else
+          (redirect-to (parameterize ([current-user username]
+                                      [current-user-type authenticated?])
+                         (main-url page/root))
+                       #:headers
+                       (list (cookie->header
+                              (make-id-cookie
+                               "name"
+                               secret-salt
+                               (format "~a:~a"
+                                       authenticated?
+                                       username)))))])]
+      [else
+       (page/login
+        req
+        (format "Invalid password for user (~S)" username))]))
 
 
   (define (default-text-input default-string)
@@ -555,7 +567,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (min 1 base)))
 
   (define (compute-assignment-grade a default-grade)
-    (GRADE-CACHE-USE 
+    (GRADE-CACHE-USE
      (list a default-grade)
      (λ () (compute-assignment-grade^ a default-grade))))
 
@@ -611,7 +623,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (hash-ref! user-ht path t))
 
   (define (compute-grade dg)
-    (GRADE-CACHE-USE 
+    (GRADE-CACHE-USE
      (list #f dg)
      (λ () (compute-grade* dg))))
 
@@ -689,7 +701,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        ;; XXX redirect to self eval view (and in the other place too)
        (template
         #:breadcrumb the-breadcrumb
-        "Self evaluation completed."))))  
+        "Self evaluation completed."))))
 
   (define (format-answer which ans
                          #:delete? [delete? #f])
@@ -725,7 +737,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                   [i (in-naturals)])
          (define (delete-file-url pth)
            (define (okay?)
-             (and 
+             (and
               (< (current-seconds)
                  (if peer
                    (assignment-peer-secs assignment)
@@ -741,7 +753,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                (and
                 (okay?)
                 (delete-file pth)
-                (redirect-to 
+                (redirect-to
                  (if peer
                    (main-url page/assignment/peer/edit a-id)
                    (main-url page/assignment/self/edit a-id))))))))
@@ -761,20 +773,20 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                   ,prompt
                   ,(format " (~a)" i))
                ,(format-answer
-                 #:delete? (and (not peer) 
+                 #:delete? (and (not peer)
                                 (delete-file-url (assignment-question-student-grade-path a-id i)))
                  (if peer "Peer's Self" "Self")
                  (assignment-question-student-grade a-id i))
                ,(format-answer
                  (if peer "Peer's Professor" "Professor")
-                 (assignment-question-prof-grade a-id i))               
+                 (assignment-question-prof-grade a-id i))
                ,(format-answer
                  #:delete? (and peer (delete-file-url (assignment-question-peer-grade-path a-id i)))
                  (if peer "Your" "Peer's")
                  (assignment-question-peer-grade a-id i))
                (a ([href ,(format "mailto:~a?subject=~a&body=~a"
                                   "jay.mccarthy@gmail.com"
-                                  (format 
+                                  (format
                                    "330 - Dispute - ~a - ~a (~a) - ~a"
                                    a-id
                                    prompt
@@ -1468,7 +1480,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          (redirect-to (main-url page/admin/grade-next))
          (send/back
           (template
-           #:breadcrumb 
+           #:breadcrumb
            (list (cons "Professor" #f)
                  (cons "Students" (main-url page/admin/students))
                  (cons "Grading" #f))
@@ -1573,9 +1585,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                         [(? list? l) (last l)]))
 
                      `(tr
-                       (td (a ([href 
+                       (td (a ([href
                                 ,(format "mailto:~a"
-                                         (student-email 
+                                         (student-email
                                           (student-info u)))])
                               "@")
                            " "
@@ -1612,60 +1624,60 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
     (send/back
      (template
-      #:breadcrumb 
+      #:breadcrumb
       (list (cons "Professor" #f)
             (cons "Assignments" (main-url page/admin/assignments))
             (cons a-id #f))
       admin-buttons
       `(table ([class "adetails sortable"])
-        (thead
-         (tr
-          (th "#")
-          (th "Prompt")
-          (th "Min")
-          (th "Mean")
-          (th "Median")
-          (th "Max")
-          (th "Deets")))
-        (tbody
-         ,@(for/list ([q (in-list (assignment-questions a))]
-                      [i (in-naturals)])
-             (match-define (question nw ow prompt type) q)
+              (thead
+               (tr
+                (th "#")
+                (th "Prompt")
+                (th "Min")
+                (th "Mean")
+                (th "Median")
+                (th "Max")
+                (th "Deets")))
+              (tbody
+               ,@(for/list ([q (in-list (assignment-questions a))]
+                            [i (in-naturals)])
+                   (match-define (question nw ow prompt type) q)
 
-             (define gs
-               (for/list ([u (in-list (users))]
-                          #:when 
-                             (parameterize ([current-user u])
-                               (self-eval-completed? a)))
-                 (/ (parameterize ([current-user u])
-                      (compute-question-grade #t 0 a-id i q))
-                    (+ nw ow))))
-             (define grade->count
-               (for/fold ([h (hash)])
-                   ([g (in-list gs)])
-                 (hash-update h g add1 0)))
-             (define deets-l
-               (sort (hash->list grade->count)
-                     > #:key cdr))
-             (define deets
-               (for/fold ([d empty])
-                   ([g*c (in-list deets-l)])
-                 (append d
-                         (list 
-                          `(span ([class "adeets"])
-                                 (span ([class "per"])
-                                       ,(format-% (car g*c)))
-                                 (span ([class "count"])
-                                       ,(number->string (cdr g*c))))))))
+                   (define gs
+                     (for/list ([u (in-list (users))]
+                                #:when
+                                (parameterize ([current-user u])
+                                  (self-eval-completed? a)))
+                       (/ (parameterize ([current-user u])
+                            (compute-question-grade #t 0 a-id i q))
+                          (+ nw ow))))
+                   (define grade->count
+                     (for/fold ([h (hash)])
+                         ([g (in-list gs)])
+                       (hash-update h g add1 0)))
+                   (define deets-l
+                     (sort (hash->list grade->count)
+                           > #:key cdr))
+                   (define deets
+                     (for/fold ([d empty])
+                         ([g*c (in-list deets-l)])
+                       (append d
+                               (list
+                                `(span ([class "adeets"])
+                                       (span ([class "per"])
+                                             ,(format-% (car g*c)))
+                                       (span ([class "count"])
+                                             ,(number->string (cdr g*c))))))))
 
-             `(tr
-               (td ,(format "~a" i))
-               (td ,prompt
-                   " ("
-                   ,(format-% (+ nw ow))
-                   ")")
-               ,@(rest (fourth (stat-table gs #f)))
-               (td ,@deets))))))))
+                   `(tr
+                     (td ,(format "~a" i))
+                     (td ,prompt
+                         " ("
+                         ,(format-% (+ nw ow))
+                         ")")
+                     ,@(rest (fourth (stat-table gs #f)))
+                     (td ,@deets))))))))
 
   (define (page/admin/assignments req)
     (unless (is-admin?)
@@ -1675,12 +1687,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
     (send/back
      (template
-      #:breadcrumb 
+      #:breadcrumb
       (list (cons "Professor" #f)
             (cons "Assignments" #f))
       admin-buttons
       (class-average-table)
-      `(table 
+      `(table
         ([id "assignments"])
         (thead
          (tr (th "Assignment")
@@ -1705,14 +1717,14 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                (for/list ([u (in-list (users))]
                           #:when
                           (parameterize ([current-user u])
-                             (self-eval-completed? a)))
+                            (self-eval-completed? a)))
                  u))
              (define (did-prof-eval-completed)
                (for/list ([u (in-list (users))]
                           #:when
                           (parameterize ([current-user u])
-                             (prof-eval-completed? a)))
-                 u))            
+                            (prof-eval-completed? a)))
+                 u))
              (define a-link
                `(a ([href ,(main-url page/admin/assignments/view
                                      a-id)])
@@ -1725,12 +1737,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                [(and #f (< now (assignment-eval-secs a)))
                 `(tr (td ,a-link)
                      (td ,(number->string (length turned-in-files)))
-                     (td ,(number->string 
+                     (td ,(number->string
                            (length (did-self-eval-completed))))
                      (td ([colspan "6"]) ""))]
                [else
                 (define (normalize g)
-                  (define w 
+                  (define w
                     (+ (assignment-normal-weight a)
                        (assignment-optional-weight a)))
                   (if (zero? w)
@@ -1738,7 +1750,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                     (/ g w)))
                 (define grades
                   (for/list ([u (in-list (users))]
-                             #:when 
+                             #:when
                              (parameterize ([current-user u])
                                (self-eval-completed? a)))
                     (normalize (parameterize ([current-user u])
@@ -1746,10 +1758,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                 `(tr
                   (td ,a-link)
                   (td ,(number->string (length turned-in-files)))
-                  (td ,(number->string 
-                           (length (did-self-eval-completed))))
-                  (td ,(number->string 
-                           (length (did-prof-eval-completed))))
+                  (td ,(number->string
+                        (length (did-self-eval-completed))))
+                  (td ,(number->string
+                        (length (did-prof-eval-completed))))
                   ,@(rest (fourth (stat-table grades))))])))))))
 
   (define ((make-prof-eval-completed? assignment-question-prof-grade-path)
@@ -1815,6 +1827,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 (provide/contract
  [samurai-go!
   (-> #:db path-string?
+      #:closed? boolean?
       #:port port-number?
       #:assignments (listof assignment?)
       #:authenticate (-> string? string? (or/c 'admin 'user #f))
