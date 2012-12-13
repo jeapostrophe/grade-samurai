@@ -229,8 +229,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          [(and closed?
                (not
                 (directory-exists?
-                 (parameterize ([current-user username])
-                   (user-path)))))
+                 (user-path username))))
           (page/login
            req
            (format "The course is over, go away :)"))]
