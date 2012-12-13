@@ -1132,6 +1132,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (page/main req)
     (when (is-admin?)
       (page/root req))
+    (GRADE-CACHE-CLEAR!)
     (define a-day (* 60 60 24))
     (define 2-days (* a-day 2))
     (define (cond-hyperlink done? available closed text1 link1 text2 link2)
