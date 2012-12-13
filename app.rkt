@@ -484,16 +484,21 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
            (assignment-question-prof-numeric-grade/peer id i))
          (define student
            (assignment-question-student-numeric-grade/peer id i))
-         (if (and prof student)
-           (- 1 (abs (- prof student)))
-           default-grade)]
+         (cond
+           [(and prof student)
+            (- 1 (abs (- prof student)))]
+           [student
+            1]
+           [else
+            default-grade])]
         ['bool
          (define prof (assignment-question-prof-bool-grade/peer id i))
          (define student (assignment-question-student-bool-grade/peer id i))
          (cond
-           [(or (eq? 'n/a prof)
-                (eq? 'n/a student))
+           [(eq? 'n/a student)
             default-grade]
+           [(eq? 'n/a prof)
+            1]
            [(equal? prof student)
             1]
            [else
