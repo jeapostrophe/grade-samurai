@@ -164,12 +164,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         (equal? u (current-user))))
 
   (define (display-to-file* v pth)
-    (GRADE-CACHE-CLEAR!)
+    (GRADE-CACHE-CLEAR! (current-user))
     (make-parent-directory* pth)
     (display-to-file v pth #:exists 'replace))
 
   (define (write-to-file* v pth)
-    (GRADE-CACHE-CLEAR!)
+    (GRADE-CACHE-CLEAR! (current-user))
     (make-parent-directory* pth)
     (write-to-file v pth #:exists 'replace))
 
@@ -691,7 +691,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
              (file-exists? (assignment-question-student-grade-path cu a-id i))
            (define answer
              (grade-question
-              cu a-id question i
+              cu cu a-id question i
               #:breadcrumb the-breadcrumb
               #:last? #t
               #:their? #f))
@@ -1457,7 +1457,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
        (define ans
          (grade-question
-          u id q i
+          u u id q i
           #:breadcrumb
           (list (cons "Professor" #f)
                 (cons "Students" #f)
