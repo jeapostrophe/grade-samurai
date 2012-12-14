@@ -227,6 +227,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       [authenticated?
        (cond
          [(and closed?
+               (not (eq? 'admin authenticated?))
                (not
                 (directory-exists?
                  (user-path username))))
