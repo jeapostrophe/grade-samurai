@@ -303,10 +303,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (formlet-process account-formlet account-form))
 
     (write-to-file* (student nick-name first-name last-name email)
-                    (user-info-path))
+                    (user-info-path (current-user)))
     (when (binding:file? photo)
       (display-to-file* (binding:file-content photo)
-                        (user-image-path)))
+                        (user-image-path (current-user))))
 
     (redirect-to (main-url page/root)))
 
@@ -1497,7 +1497,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
              (compute-grade u 0))
            (users)))
     (define max-so-far
-      (maximum-grade-so-far))
+      (let ([x (maximum-grade-so-far)])
+        (if (zero? x) 1 x)))
     (define so-fars
       (map (λ (min-grade)
              (/ min-grade max-so-far))
