@@ -1562,7 +1562,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (page/root req))
 
     (define max-so-far
-      (maximum-grade-so-far))
+      (let ([x (maximum-grade-so-far)])
+        (if (zero? x) 1 x)))
 
     (send/back
      (template
