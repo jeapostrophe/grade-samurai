@@ -760,6 +760,23 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
               (redirect-to
                (if peer
                  (main-url page/student/assignment/peer/edit the-cu a-id)
+                 (main-url page/student/assignment/self/edit the-cu
+                           a-id))))))))
+       (define (delete-file-url/admin pth)
+         (define (okay?)
+           (and
+            (is-admin?)
+            (file-exists? pth)))
+         (and
+          (okay?)
+          (embed/url
+           (λ (req)
+             (and
+              (okay?)
+              (delete-file pth)
+              (redirect-to
+               (if peer
+                 (main-url page/student/assignment/peer/edit the-cu a-id)
                  (main-url page/student/assignment/self/edit the-cu a-id))))))))
        (define different?
          (answer-different? (assignment-question-prof-grade cu a-id i)
@@ -784,6 +801,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                (if peer "Peer's Self" "Self")
                (assignment-question-student-grade cu a-id i))
              ,(format-answer
+               #:delete? (delete-file-url/admin
+                          (assignment-question-prof-grade-path cu a-id i))
                (if peer "Peer's Professor" "Professor")
                (assignment-question-prof-grade cu a-id i))
              ,(format-answer
