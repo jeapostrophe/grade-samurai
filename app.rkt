@@ -441,9 +441,17 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (if v
       (answer:numeric-value v)
       #f))
+  (define (assignment-question-student-numeric-grade cu id i)
+    (define v (assignment-question-student-grade cu id i))
+    (if v
+      (answer:numeric-value v)
+      #f))
   (define (assignment-question-prof-numeric-grade/peer cu id i)
     (define peer (assignment-peer cu id))
     (assignment-question-prof-numeric-grade peer id i))
+
+  (define-syntax-rule (implies x y)
+    (or (not x) y))
 
   (define (is-optional-enabled? cu)
     (for/and ([a (in-list assignments)]
@@ -454,14 +462,16 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (or
        ;; It is before the self assessment date
        (< (current-seconds) (assignment-eval-secs a))
-       ;; It is after and...
+       ;; It is after and...       
        (and
         ;; they've evaluated themselves...
         (self-eval-completed? cu a)
-        ;; and so have I...
-        (prof-eval-completed? cu a)
-        ;; and I said they did do it
-        (assignment-question-prof-bool-grade cu a-id 0)))))
+        ;; they say they've done it
+        (assignment-question-student-bool-grade cu a-id 0)
+        ;; and if I have, then I agree
+        (implies (prof-eval-completed? cu a)
+                 ;; and I said they did do it
+                 (assignment-question-prof-bool-grade cu a-id 0))))))
 
   (define (compute-question-grade cu optional? default-grade id i q)
     (match-define (question nw ow _ t) q)
@@ -470,7 +480,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (match t
         ['numeric
          (or (assignment-question-prof-numeric-grade cu id i)
-             default-grade)]
+             (cond
+               ;; The student did, but prof didn't
+               [(assignment-question-student-numeric-grade cu id i)
+                => (λ (s) (if (= 1 default-grade) s default-grade))]
+               [else
+                default-grade]))]
         ['bool
          (define student-correct?
            (assignment-question-student-bool-grade cu id i))
@@ -481,8 +496,17 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
            [(  #t   #f) -1/10]
            [(  #f   #t)  1/10]
            [(  #f   #f)  0/10]
+           ;; The student did *not* fill it out
            [('n/a    _) default-grade]
-           [(   _ 'n/a) default-grade])]))
+           ;; The student did, but the prof did not
+           [(   s 'n/a)
+            (cond
+              [(not (= 1 default-grade))
+               default-grade]
+              [s
+               10/10]
+              [else
+               0/10])])]))
     (* (+ nw ow-p) ps))
 
   (define (compute-peer-grade cu optional? default-grade id i q)
@@ -561,7 +585,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       (compute-assignment-grade*
        cu
        a
-       (if (< (current-seconds) (assignment-due-secs a))
+       (if (and (not (= 0 default-grade))
+                (or (< (current-seconds) (assignment-due-secs a))
+                    (and (self-eval-completed? cu a)
+                         (not (prof-eval-completed? cu a)))))
          default-grade
          0)))
     (if optional-enable?
@@ -582,13 +609,22 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (for/sum ([a (in-list assignments)])
              (compute-assignment-grade cu a default-grade)))
 
-  (define (maximum-grade-so-far)
+  (define (maximum-grade-so-far cu)
     (define now (current-seconds))
     (for/sum ([a (in-list assignments)])
              (match-define (assignment nw ow id ds es ps qs) a)
-             (if (< ds now)
-               nw
-               0)))
+             (cond
+               ;; Don't consider it turned in, if...
+               [(or 
+                 ;; it was not due
+                 (not (< ds now))
+                 ;; I have done it, but the professor didn't look at it
+                 (and cu
+                      (self-eval-completed? cu a)
+                      (not (prof-eval-completed? cu a))))
+                0]
+               [else
+                nw])))
 
   (define GRADE-CACHE (make-hash))
   (define GRADE-CACHE-T
@@ -1511,21 +1547,26 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
            "All grading is done! Great!")))]))
 
   (define (class-average-table cu)
+    (define the-users
+      (users))
     (define mins
       (map (λ (u)
              (compute-grade u 0))
-           (users)))
-    (define max-so-far
-      (let ([x (maximum-grade-so-far)])
+           the-users))
+    (define my-max-so-far
+      (let ([x (maximum-grade-so-far cu)])
         (if (zero? x) 1 x)))
     (define so-fars
-      (map (λ (min-grade)
+      (map (λ (min-grade u)
+             (define max-so-far
+               (let ([x (maximum-grade-so-far u)])
+                 (if (zero? x) 1 x)))
              (/ min-grade max-so-far))
-           mins))
+           mins the-users))
     (define maxs
       (map (λ (u)
              (compute-grade u 1))
-           (users)))
+           the-users))
     `(table ([class "class_grades"])
             (tr (th "Minimum Final Grade")
                 (th "Grade So Far")
@@ -1534,7 +1575,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                [cu
                 (define min-grade (compute-grade cu 0))
                 `(tr (td ,(show-grade min-grade))
-                     (td ,(show-grade (/ min-grade max-so-far)))
+                     (td ,(show-grade (/ min-grade my-max-so-far)))
                      (td ,(format-grade cu 1)))]
                [else
                 ""])
@@ -1578,11 +1619,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (page/admin/students req)
     (unless (is-admin?)
-      (page/root req))
-
-    (define max-so-far
-      (let ([x (maximum-grade-so-far)])
-        (if (zero? x) 1 x)))
+      (page/root req))    
 
     (send/back
      (template
@@ -1601,39 +1638,42 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
               (tbody
                ,@(for/list ([u (in-list (sorted-users))])
                    (define min-grade (compute-grade u 0))
+                   (define max-so-far
+                     (let ([x (maximum-grade-so-far u)])
+                       (if (zero? x) 1 x)))
 
-                     (define last*
-                       (match-lambda
-                        [(list) "N/A"]
-                        [(? list? l) (last l)]))
+                   (define last*
+                     (match-lambda
+                      [(list) "N/A"]
+                      [(? list? l) (last l)]))
 
-                     `(tr
-                       (td (a ([href
-                                ,(format "mailto:~a"
-                                         (student-email
-                                          (student-info u)))])
-                              "@")
-                           " "
-                           (a ([href
-                                ,(main-url page/student u)])
-                              "#")
-                           " "
-                           ,(student-display-name u))
-                       (td ,(show-grade min-grade))
-                       (td ,(show-grade (/ min-grade max-so-far)))
-                       (td ,(format-grade u 1))
-                       (td
-                        ,(last*
-                          (for/list
-                              ([a (in-list assignments)]
-                               #:when (self-eval-completed? u a))
-                            (assignment-id a))))
-                       (td
-                        ,@(for/list
-                              ([a (in-list assignments)]
-                               #:when (self-eval-completed? u a)
-                               #:unless (prof-eval-completed? u a))
-                            (format "~a " (assignment-id a)))))))))))
+                   `(tr
+                     (td (a ([href
+                              ,(format "mailto:~a"
+                                       (student-email
+                                        (student-info u)))])
+                            "@")
+                         " "
+                         (a ([href
+                              ,(main-url page/student u)])
+                            "#")
+                         " "
+                         ,(student-display-name u))
+                     (td ,(show-grade min-grade))
+                     (td ,(show-grade (/ min-grade max-so-far)))
+                     (td ,(format-grade u 1))
+                     (td
+                      ,(last*
+                        (for/list
+                            ([a (in-list assignments)]
+                             #:when (self-eval-completed? u a))
+                          (assignment-id a))))
+                     (td
+                      ,@(for/list
+                            ([a (in-list assignments)]
+                             #:when (self-eval-completed? u a)
+                             #:unless (prof-eval-completed? u a))
+                          (format "~a " (assignment-id a)))))))))))
 
   (define admin-buttons
     `(div ([id "grade-button"])
