@@ -314,6 +314,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (dispatch-rules+applies
      [("")
       page/root]
+     [("admin" "export")
+      page/admin/export]
      [("admin" "students")
       page/admin/students]
      [("admin" "assignments")
@@ -1681,7 +1683,36 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           nbsp
           (a ([href ,(main-url page/admin/assignments)]) "Assignments")
           nbsp
-          (a ([href ,(main-url page/admin/grade-next)]) "Grade")))
+          (a ([href ,(main-url page/admin/grade-next)]) "Grade")
+          nbsp
+          (a ([href ,(main-url page/admin/export)]) "Export")))
+
+  (define (page/admin/export req)
+    (unless (is-admin?)
+      (page/root req))
+
+    (response/output 
+     #:mime-type #"text/csv"
+     (λ (op) 
+       (parameterize ([current-output-port op])
+         (printf "Student,NumericFinal")
+         (for ([a (in-list assignments)])
+           (printf ",~a" (assignment-id a)))
+         (printf "\n")
+
+         (for ([u (in-list (users))]
+               [i (in-naturals 2)])
+           (printf "~a," u)
+           (printf "=SUM(C~a:Z~a)" i i)
+           (for ([a (in-list assignments)])
+             (printf ",~a" 
+                     (real->decimal-string
+                      (compute-assignment-grade/id
+                       u
+                       (assignment-id a)
+                       0)
+                      5)))
+           (printf "\n"))))))
 
   (define (page/admin/assignments/view req a-id)
     (unless (is-admin?)
