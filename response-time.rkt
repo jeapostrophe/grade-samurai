@@ -47,11 +47,20 @@
   (define sl (sort l <))
   (list-ref sl (quotient (length sl) 2)))
 
+(define (->time t)
+  (cond
+    [(< t 60)
+     (format "~a s" (real->decimal-string t))]
+    [(< t (* 60 60))
+     (format "~a m" (real->decimal-string (/ t 60)))]
+    [else
+     (format "~a h" (real->decimal-string (/ t (* 60 60))))]))
+
 (define (stats l)
   (printf "How Many: ~a\n" (length l))
-  (printf "Min: ~a\n" (apply min (filter positive? l)))
-  (printf "Max: ~a\n" (apply max l))
-  (printf "Median: ~a\n" (median l))
-  (printf "Average: ~a\n" (real->decimal-string (/ (sum l) (length l)))))
+  (printf "     Min: ~a\n" (->time (apply min (filter positive? l))))
+  (printf "     Max: ~a\n" (->time (apply max l)))
+  (printf "  Median: ~a\n" (->time (median l)))
+  (printf " Average: ~a\n" (->time (/ (sum l) (length l)))))
 
 (stats times)
