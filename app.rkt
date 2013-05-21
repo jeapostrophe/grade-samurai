@@ -31,8 +31,10 @@
   (string-split s "\n"))
 
 (define (contains-greater-than-80-char-line? file-content)
-  (for/or ([l (in-list (string->lines (bytes->string/utf-8 file-content)))])
-    ((string-length l) . > . 80)))
+  (for/or ([l (in-list (string->lines (bytes->string/utf-8 file-content)))]
+           [i (in-naturals 1)])
+    (and ((string-length l) . > . 80)
+         i)))
 
 (module+ test
   (require rackunit)
@@ -44,7 +46,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzab
 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
-") #t)
+") 4)
   (check-equal? (contains-greater-than-80-char-line? #"
 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
@@ -66,7 +68,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        (cdr pos-pair))))
   (append html (list (substring s pos (string-length s)))))
 
-(define (string->linked-html s)
+(define (string->linked-html s #:id [id #f])
   (define positions
     (regexp-match-positions* #px"[l|L]\\d+" s))
   (define-values (html pos)
@@ -88,7 +90,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                          1))])
              ,(substring s (car pos-pair) (cdr pos-pair)))))
        (cdr pos-pair))))
-  `(p ([class "comment"])
+  `(p (,@(if id `([id ,id]) `()) [class "comment"])
       ,@html ,@(newline->br (substring s pos (string-length s)))))
 
 (module+ test
@@ -712,8 +714,15 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                          #:delete? [delete? #f])
     (cond
       [ans
+       (define triangle-id (symbol->string (gensym 'tri)))
+       (define comments-id (symbol->string (gensym 'ans)))
        `(div ([class ,(format "answer ~a" which)])
-             (p ,(format "~a evaluation is: ~a"
+             (p 
+              (a ([id ,triangle-id]
+                  [class "tick"]
+                  [href ,(format "javascript:TocviewToggle(~s,~s)" triangle-id comments-id)])
+                 9660) nbsp
+              ,(format "~a evaluation is: ~a"
                          which
                          (match ans
                            [(answer:bool _ _ completed?)
@@ -727,7 +736,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                           (a ([href ,delete?])
                              "(rescind)"))
                    ""))
-             ,(string->linked-html (answer-comments ans)))]
+             ,(string->linked-html #:id comments-id
+                                   (answer-comments ans)))]
       [else
        `(div ([class ,(format "answer incomplete ~a" which)])
              (p ,(format "~a evaluation is not completed." which)))]))
@@ -1362,9 +1372,13 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
            (bindings-assq #"file-content" bs)))]))
 
     (define file-content (binding:file-content new-file-binding))
-    (when (contains-greater-than-80-char-line? file-content)
-      (error 'upload-file
-             "Cannot upload files with lines greater than 80 characters"))
+    (cond
+      [(contains-greater-than-80-char-line? file-content)
+       =>
+       (λ (line-number)
+         (error 'upload-file
+                "Cannot upload files with lines greater than 80 characters (Line #~a is too long)"
+                line-number))])
     (make-directory* (assignment-file-path cu a-id))
     (when (< (current-seconds) (assignment-due-secs assignment))
       (display-to-file #:exists 'replace
