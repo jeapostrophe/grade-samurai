@@ -310,43 +310,6 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
     (redirect-to (main-url page/root)))
 
-  (define-values (main-dispatch main-url main-applies?)
-    (dispatch-rules+applies
-     [("")
-      page/root]
-     [("admin" "export")
-      page/admin/export]
-     [("admin" "students")
-      page/admin/students]
-     [("admin" "assignments")
-      page/admin/assignments]
-     [("admin" "assignments" (string-arg))
-      page/admin/assignments/view]
-     [("admin" "grade-next")
-      page/admin/grade-next]
-     [("login")
-      page/login]
-     [("logout")
-      page/logout]
-     [("account")
-      page/account]
-     [("student" (string-arg))
-      page/student]
-     [("student" (string-arg) "photo.jpg")
-      page/student/photo]
-     [("student" (string-arg) "assignment" (string-arg) "files")
-      page/student/assignment/files]
-     [("student" (string-arg) "assignment" (string-arg) "files" "delete" (string-arg))
-      page/student/assignment/files/delete]
-     [("student" (string-arg) "assignment" (string-arg) "self" "edit")
-      page/student/assignment/self/edit]
-     [("student" (string-arg) "assignment" (string-arg) "self")
-      page/student/assignment/self]
-     [("student" (string-arg) "assignment" (string-arg) "peer" "edit")
-      page/student/assignment/peer/edit]
-     [("student" (string-arg) "assignment" (string-arg) "peer")
-      page/student/assignment/peer]))
-
   (define default-peer
     "The Spanish Inquisition")
   (define (assignment-peer cu id)
@@ -1675,17 +1638,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                             ([a (in-list assignments)]
                              #:when (self-eval-completed? u a)
                              #:unless (prof-eval-completed? u a))
-                          (format "~a " (assignment-id a)))))))))))
-
-  (define admin-buttons
-    `(div ([id "grade-button"])
-          (a ([href ,(main-url page/admin/students)]) "Students")
-          nbsp
-          (a ([href ,(main-url page/admin/assignments)]) "Assignments")
-          nbsp
-          (a ([href ,(main-url page/admin/grade-next)]) "Grade")
-          nbsp
-          (a ([href ,(main-url page/admin/export)]) "Export")))
+                          (format "~a " (assignment-id a)))))))))))  
 
   (define (page/admin/export req)
     (unless (is-admin?)
@@ -1879,12 +1832,60 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           (a ([href "http://racket-lang.org/"]) "Racket") ". "
           "Written by "
           (a ([href "http://faculty.cs.byu.edu/~jay"]) "Jay McCarthy")
-          ","
-          (a ([href "http://trevoroakes.com/"]) "Trevor Oakes") " and "
+          ", "
+          (a ([href "http://trevoroakes.com/"]) "Trevor Oakes")
+          " and "
           "BYU PLT."
           (br)
           (span ([id "timestamp"])
                 ,(date->string (seconds->date (current-seconds)) #t))))
+
+  (define-values (main-dispatch main-url main-applies?)
+    (dispatch-rules+applies
+     [("")
+      page/root]
+     [("admin" "export")
+      page/admin/export]
+     [("admin" "students")
+      page/admin/students]
+     [("admin" "assignments")
+      page/admin/assignments]
+     [("admin" "assignments" (string-arg))
+      page/admin/assignments/view]
+     [("admin" "grade-next")
+      page/admin/grade-next]
+     [("login")
+      page/login]
+     [("logout")
+      page/logout]
+     [("account")
+      page/account]
+     [("student" (string-arg))
+      page/student]
+     [("student" (string-arg) "photo.jpg")
+      page/student/photo]
+     [("student" (string-arg) "assignment" (string-arg) "files")
+      page/student/assignment/files]
+     [("student" (string-arg) "assignment" (string-arg) "files" "delete" (string-arg))
+      page/student/assignment/files/delete]
+     [("student" (string-arg) "assignment" (string-arg) "self" "edit")
+      page/student/assignment/self/edit]
+     [("student" (string-arg) "assignment" (string-arg) "self")
+      page/student/assignment/self]
+     [("student" (string-arg) "assignment" (string-arg) "peer" "edit")
+      page/student/assignment/peer/edit]
+     [("student" (string-arg) "assignment" (string-arg) "peer")
+      page/student/assignment/peer]))
+
+  (define admin-buttons
+    `(div ([id "grade-button"])
+          (a ([href ,(main-url page/admin/students)]) "Students")
+          nbsp
+          (a ([href ,(main-url page/admin/assignments)]) "Assignments")
+          nbsp
+          (a ([href ,(main-url page/admin/grade-next)]) "Grade")
+          nbsp
+          (a ([href ,(main-url page/admin/export)]) "Export")))
 
   (define (require-login-then-dispatch req)
     (cond
@@ -1910,6 +1911,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
    #:ssl-cert (build-path db-path 'up "server-cert.pem")
    #:ssl-key (build-path db-path 'up "private-key.pem")
    #:quit? #f
+   #:connection-close? #t
    #:launch-browser? #f
    #:extra-files-paths (list (build-path source-dir "static"))
    #:servlet-regexp #rx""
