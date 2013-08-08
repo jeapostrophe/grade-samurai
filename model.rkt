@@ -22,7 +22,7 @@
           [optional-weight number?]
           [id string?]
           [due-secs number?]
-          [eval-secs number?]
+          [eval-secs (or/c false/c number?)]
           [peer-secs (or/c false/c number?)]
           [questions (listof question?)])]
  [struct question

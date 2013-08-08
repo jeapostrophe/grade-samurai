@@ -427,8 +427,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
               #:when (zero? (assignment-optional-weight a)))
       (define a-id (assignment-id a))
       (or
-       ;; It is before the self assessment date
-       (< (current-seconds) (assignment-eval-secs a))
+       ;; It is before the self assessment date, if there is one
+       (and (assignment-eval-secs a)
+            (< (current-seconds) (assignment-eval-secs a)))
        ;; It is after and...       
        (and
         ;; they've evaluated themselves...
@@ -680,7 +681,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
             (cons "Edit" #f)))
 
     (define (overdue-or thunk)
-      (if (<= (assignment-eval-secs assignment) (current-seconds))
+      (if (and (assignment-eval-secs assignment)
+               (<= (assignment-eval-secs assignment)
+                   (current-seconds)))
         (send/back
          (template
           #:breadcrumb the-breadcrumb
@@ -753,10 +756,13 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        (define (delete-file-url pth)
          (define (okay?)
            (and
-            (< (current-seconds)
-               (if peer
-                 (assignment-peer-secs assignment)
-                 (assignment-eval-secs assignment)))
+            (let ([the-secs
+                   (if peer
+                     (assignment-peer-secs assignment)
+                     (assignment-eval-secs assignment))])
+              (and the-secs
+                   (< (current-seconds)
+                      the-secs)))
             (file-exists? pth)
             (not
              (file-exists?
@@ -1187,8 +1193,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          (if (assignment-peer-secs a)
            (or (peer-eval-completed? cu a)
                (> (current-seconds) (assignment-peer-secs a)))
-           (or (self-eval-completed? cu a)
-               (> (current-seconds) (assignment-eval-secs a)))))
+           (if (assignment-eval-secs a)
+             (or (self-eval-completed? cu a)
+                 (> (current-seconds) (assignment-eval-secs a)))
+             (> (current-seconds) (assignment-due-secs a)))))
        assignments))
 
     (define optional-enable? (is-optional-enabled? cu))
@@ -1202,7 +1210,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                     (> (current-seconds) (assignment-peer-secs a))))
            #f]
           [(or (self-eval-completed? cu a)
-               (> (current-seconds) (assignment-eval-secs a)))
+               (and (assignment-eval-secs a)
+                    (> (current-seconds) (assignment-eval-secs a))))
            (assignment-peer-secs a)]
           [(> (current-seconds) (assignment-due-secs a))
            (assignment-eval-secs a)]
@@ -1794,7 +1803,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                 `(tr (td ,a-link)
                      (td ,(number->string (length turned-in-files)))
                      (td ([colspan "7"]) ""))]
-               [(and #f (< now (assignment-eval-secs a)))
+               [(and #f (assignment-eval-secs a) (< now (assignment-eval-secs a)))
                 `(tr (td ,a-link)
                      (td ,(number->string (length turned-in-files)))
                      (td ,(number->string
@@ -1822,20 +1831,21 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                         (length (did-prof-eval-completed))))
                   ,@(rest (fourth (stat-table grades))))])))))))
 
-  (define ((make-prof-eval-completed? assignment-question-prof-grade-path)
+  (define ((make-prof-eval-completed? assignment-secs assignment-question-prof-grade-path)
            cu a)
     (define id (assignment-id a))
+    (define secs (assignment-secs a))
     (define qs (assignment-questions a))
     (for/and ([q (in-list qs)]
               [i (in-naturals)])
       (file-exists?
        (assignment-question-prof-grade-path cu id i))))
   (define peer-eval-completed?
-    (make-prof-eval-completed? assignment-question-student-grade-path/peer))
+    (make-prof-eval-completed? assignment-peer-secs assignment-question-student-grade-path/peer))
   (define self-eval-completed?
-    (make-prof-eval-completed? assignment-question-student-grade-path))
+    (make-prof-eval-completed? assignment-eval-secs assignment-question-student-grade-path))
   (define prof-eval-completed?
-    (make-prof-eval-completed? assignment-question-prof-grade-path))
+    (make-prof-eval-completed? (λ (x) +inf.0) assignment-question-prof-grade-path))
 
   (define current-user (make-parameter #f))
   (define current-user-type (make-parameter #f))
