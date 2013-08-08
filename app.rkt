@@ -1281,7 +1281,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (send/back
      (template
       #:breadcrumb (list (cons "Home" #f))
-      (class-average-table cu)
+      (render-student-info cu)
+      (class-average-table cu)      
       `(div ([class "assignments upcoming"])
             (h1 "Future")
             ,@(map render-assignment upcoming))
@@ -1437,6 +1438,13 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
              ,@bodies)
         ,(footer)))))
 
+  (define (render-student-info u)
+    `(div ([class "student-info"])
+          (img ([src ,(main-url page/student/photo u)]
+                [height "160"]))
+          (br)
+          ,(student-display-name u)))
+
   (define (page/student/photo req student)
     (define user-img-path (user-image-path student))
       (define user-email
@@ -1511,11 +1519,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
           #:peer? #t
           #:extra
           (list
-           `(div ([class "student-info"])
-                 (img ([src ,(main-url page/student/photo u)]
-                       [height "160"]))
-                 (br)
-                 ,(student-display-name u)))))
+           (render-student-info u))))
 
        (write-to-file*
           ans
