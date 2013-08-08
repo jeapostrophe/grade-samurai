@@ -345,6 +345,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (build-path (assignment-path u id) "files"))
   (define (assignment-files u id)
     (directory-list* (assignment-file-path u id)))
+  (define (assignment-time-path u id)
+    (build-path (assignment-path u id) "time"))
+  (define (file->value* p) 
+    (and (file-exists? p) (file->value p)))
+  (define (assignment-time u id)
+    (file->value* (assignment-time-path u id)))
   (define (assignment-peer-path u id)
     (build-path (assignment-path u id) "peer"))
   (define (assignment-question-student-grade-path u id i)
@@ -1253,13 +1259,14 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                               (assignment-id a)
                               0)))])))
         (tr (td ,(cond-hyperlink
-                  #f
+                  (files-submitted? cu (assignment-id a))
                   (current-seconds) (assignment-due-secs a)
                   "Turn in Files"
                   (main-url page/student/assignment/files
                             cu (assignment-id a))
                   "View Files"
-                  (main-url page/student/assignment/files cu (assignment-id a))))
+                  (main-url page/student/assignment/files
+                            cu (assignment-id a))))
             (td ,(cond-hyperlink
                   (self-eval-completed? cu a)
                   (assignment-due-secs a) (assignment-eval-secs a)
@@ -1299,6 +1306,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         (delete-file file-path)))
     (redirect-to (main-url page/student/assignment/files cu a-id)))
 
+  (define (files-submitted? cu a-id)
+    (and (not (empty? (assignment-files cu a-id)))
+         (assignment-time cu a-id)))
+
   (define (page/student/assignment/files req cu a-id)
     (define assignment (id->assignment a-id))
     (define new-file-request
@@ -1307,6 +1318,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
          (define seconds-left
            (- (assignment-due-secs assignment) (current-seconds)))
          (define files (assignment-files cu a-id))
+         (define hours-taken (assignment-time cu a-id))
          (define closed? (< seconds-left 0))
          (template
           #:breadcrumb (list (cons "Home" (main-url page/student cu))
@@ -1339,6 +1351,21 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                            "X")))))
                          files)))
             (list
+             `(h1 "Report how long the assignment took:")
+             `(form ([action ,(if closed? "#" k-url)]
+                     [method "post"]
+                     [enctype "multipart/form-data"])
+                    (input ([type "text"]
+                            [value ,(or (and hours-taken
+                                             (number->string hours-taken))
+                                        "")]
+                            [name "new-time"])) " hours"
+                            nbsp
+                            (input ([type "submit"]
+                                    [value "Report time"]
+                                    ,@(if closed?
+                                        `([disabled "disabled"])
+                                        `()))))
              `(h1 "Upload a file from your computer:")
              `(form ([action ,(if closed? "#" k-url)]
                      [method "post"]
@@ -1366,37 +1393,55 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                                ,@(if closed?
                                    `([disabled "disabled"])
                                    `()))))))))))))
-    (define new-file-binding
-      (cond
-        [(bindings-assq #"new-file"
-                        (request-bindings/raw new-file-request))
-         => (λ (x) x)]
-        [else
-         (define bs (request-bindings/raw new-file-request))
-         (binding:file
-          #"new-file"
-          (binding:form-value
-           (bindings-assq #"filename" bs))
-          empty
-          (binding:form-value
-           (bindings-assq #"file-content" bs)))]))
 
-    (define file-content (binding:file-content new-file-binding))
     (cond
-      [(contains-greater-than-80-char-line? file-content)
-       =>
-       (λ (line-number)
-         (error 'upload-file
-                "Cannot upload files with lines greater than 80 characters (Line #~a is too long)"
-                line-number))])
-    (make-directory* (assignment-file-path cu a-id))
-    (when (< (current-seconds) (assignment-due-secs assignment))
-      (display-to-file #:exists 'replace
-                       file-content
-                       (build-path (assignment-file-path cu a-id)
-                                   (bytes->string/utf-8
-                                    (binding:file-filename new-file-binding)))))
-    (redirect-to (main-url page/student/assignment/files cu a-id)))
+      [(bindings-assq #"new-time"
+                      (request-bindings/raw new-file-request))
+       => (λ (b)
+            (define new-hours-taken
+              (string->number
+               (bytes->string/utf-8
+                (binding:form-value b))))
+
+            (when (and new-hours-taken (< (current-seconds) (assignment-due-secs assignment)))
+              (make-parent-directory* (assignment-time-path cu a-id))
+              (display-to-file #:exists 'replace
+                               new-hours-taken
+                               (assignment-time-path cu a-id)))
+
+            (redirect-to (main-url page/student/assignment/files cu a-id)))]
+      [else
+       (define new-file-binding
+         (cond
+           [(bindings-assq #"new-file"
+                           (request-bindings/raw new-file-request))
+            => (λ (x) x)]
+           [else
+            (define bs (request-bindings/raw new-file-request))
+            (binding:file
+             #"new-file"
+             (binding:form-value
+              (bindings-assq #"filename" bs))
+             empty
+             (binding:form-value
+              (bindings-assq #"file-content" bs)))]))
+
+       (define file-content (binding:file-content new-file-binding))
+       (cond
+         [(contains-greater-than-80-char-line? file-content)
+          =>
+          (λ (line-number)
+            (error 'upload-file
+                   "Cannot upload files with lines greater than 80 characters (Line #~a is too long)"
+                   line-number))])
+       (make-directory* (assignment-file-path cu a-id))
+       (when (< (current-seconds) (assignment-due-secs assignment))
+         (display-to-file #:exists 'replace
+                          file-content
+                          (build-path (assignment-file-path cu a-id)
+                                      (bytes->string/utf-8
+                                       (binding:file-filename new-file-binding)))))
+       (redirect-to (main-url page/student/assignment/files cu a-id))]))
 
   (define jquery-url
     "https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js")
@@ -1582,8 +1627,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
         format-%))
     `(table ([class "grade-stats"])
             (tr (th "Class Min")
-                (th "Mean")
-                (th "Median")
+                (th "Avg")
+                (th "Med")
                 (th "Max"))
             (tr (td ,(format (list-min l)))
                 (td ,(format (average l)))
@@ -1622,6 +1667,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       `(table ([id "grades"] [class "sortable"])
               (thead
                (tr (th "Student")
+                   (th "Time")
                    (th "Min")
                    (th "So Far")
                    (th "Max")
@@ -1651,6 +1697,10 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                             "#")
                          " "
                          ,(student-display-name u))
+                     (td ,(real->decimal-string
+                           (apply +
+                                  (for/list ([a (in-list assignments)])
+                                    (or (assignment-time u (assignment-id a)) 0)))))
                      (td ,(show-grade min-grade))
                      (td ,(show-grade (/ min-grade max-so-far)))
                      (td ,(format-grade u 1))
@@ -1713,8 +1763,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                 (th "#")
                 (th "Prompt")
                 (th "Min")
-                (th "Mean")
-                (th "Median")
+                (th "Avg")
+                (th "Med")
                 (th "Max")
                 (th "Deets")))
               (tbody
@@ -1771,23 +1821,31 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       `(table
         ([id "assignments"])
         (thead
-         (tr (th "Assignment")
-             (th "Turn-in")
-             (th "Self-eval")
-             (th "Prof-eval")
-             (th "Min")
-             (th "Mean")
-             (th "Median")
-             (th "Max")))
+         (tr (th "")
+             (th "Submit")
+             (th "TMin")
+             (th "TAvg")
+             (th "TMed")
+             (th "TMax")
+             (th "Self")
+             (th "Prof")
+             (th "GMin")
+             (th "GAvg")
+             (th "GMed")
+             (th "GMax")))
         (tbody
          ,@(for/list ([a (in-list assignments)])
              (define a-id (assignment-id a))
              (define turned-in-files
                (for/list ([u (in-list (users))]
-                          #:unless
-                          (empty?
-                           (assignment-files u a-id)))
+                          #:when
+                          (files-submitted? u a-id))
                  u))
+             (define times
+               (for/list ([u (in-list (users))]
+                          #:when
+                          (files-submitted? u a-id))
+                 (assignment-time u a-id)))
              (define (did-self-eval-completed)
                (for/list ([u (in-list (users))]
                           #:when
@@ -1802,14 +1860,23 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                `(a ([href ,(main-url page/admin/assignments/view
                                      a-id)])
                    ,a-id))
+             (define (time-stats l)
+               (define (format x)
+                 (real->decimal-string x))
+               `((td ,(format (list-min l)))
+                 (td ,(format (average l)))
+                 (td ,(format (median l)))
+                 (td ,(format (list-max l)))))
              (cond
                [(< now (assignment-due-secs a))
                 `(tr (td ,a-link)
                      (td ,(number->string (length turned-in-files)))
+                     ,@(time-stats times)
                      (td ([colspan "7"]) ""))]
                [(and #f (assignment-eval-secs a) (< now (assignment-eval-secs a)))
                 `(tr (td ,a-link)
                      (td ,(number->string (length turned-in-files)))
+                     ,@(time-stats times)
                      (td ,(number->string
                            (length (did-self-eval-completed))))
                      (td ([colspan "6"]) ""))]
@@ -1829,6 +1896,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                 `(tr
                   (td ,a-link)
                   (td ,(number->string (length turned-in-files)))
+                  ,@(time-stats times)
                   (td ,(number->string
                         (length (did-self-eval-completed))))
                   (td ,(number->string
