@@ -1176,14 +1176,16 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define 2-days (* a-day 2))
   (define (cond-hyperlink done? available closed text1 link1 text2 link2)
     (cond
-      [(or (not available) (not closed))
+      #;[(or (not available) (not closed))
        ""]
       [DEBUG?
        `(p (a ([href ,link1]) ,text1) (br)
            (a ([href ,link2]) ,text2))]
-      [(< (current-seconds) available)
-       text1]
-      [(or done? (> (current-seconds) closed))
+      [(and available (< (current-seconds) available))
+       (if closed
+         text1
+         "")]
+      [(or done? (and closed (> (current-seconds) closed)))
        `(a ([href ,link2]) ,text2)]
       [else
        `(p (a ([href ,link1]) ,text1) (br)
@@ -1207,7 +1209,6 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
     (define optional-enable? (is-optional-enabled? cu))
 
-    ;; TODO render offline assignments (like the final) differently
     (define (render-assignment a)
       (define next-due
         (cond
@@ -1258,33 +1259,41 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                               cu
                               (assignment-id a)
                               0)))])))
-        (tr (td ,(cond-hyperlink
-                  (files-submitted? cu (assignment-id a))
-                  (current-seconds) (assignment-due-secs a)
-                  "Turn in Files"
-                  (main-url page/student/assignment/files
-                            cu (assignment-id a))
-                  "View Files"
-                  (main-url page/student/assignment/files
-                            cu (assignment-id a))))
-            (td ,(cond-hyperlink
-                  (self-eval-completed? cu a)
-                  (assignment-due-secs a) (assignment-eval-secs a)
-                  "Self Evaluation"
-                  (main-url page/student/assignment/self/edit
-                            cu (assignment-id a))
-                  "Self Evaluation Details"
-                  (main-url page/student/assignment/self
-                            cu (assignment-id a))))
-            (td ,(cond-hyperlink
-                  (peer-eval-completed? cu a)
-                  (assignment-eval-secs a) (assignment-peer-secs a)
-                  "Grade a Peer"
-                  (main-url page/student/assignment/peer/edit
-                            cu (assignment-id a))
-                  "Grade a Peer Details"
-                  (main-url page/student/assignment/peer
-                            cu (assignment-id a)))))))
+        (tr 
+         ,(if (equal? "final" (assignment-id a))
+            `(td 
+              ,(if (is-admin?)
+                 "XXX Turn in final"
+                 "The professor will turn in the final on the site on your behalf."))
+            `(td ,(cond-hyperlink
+                   (files-submitted? cu (assignment-id a))
+                   (current-seconds) (assignment-due-secs a)
+                   "Turn in Files"
+                   (main-url page/student/assignment/files
+                             cu (assignment-id a))
+                   "View Files"
+                   (main-url page/student/assignment/files
+                             cu (assignment-id a)))))
+         (td ,(cond-hyperlink
+               (self-eval-completed? cu a)
+               (assignment-due-secs a) (assignment-eval-secs a)
+               "Self Evaluation"
+               (main-url page/student/assignment/self/edit
+                         cu (assignment-id a))
+               "Self Evaluation Details"
+               (main-url page/student/assignment/self
+                         cu (assignment-id a))))
+         (td 
+          #;
+          ,(cond-hyperlink
+               (peer-eval-completed? cu a)
+               (assignment-eval-secs a) (assignment-peer-secs a)
+               "Grade a Peer"
+               (main-url page/student/assignment/peer/edit
+                         cu (assignment-id a))
+               "Grade a Peer Details"
+               (main-url page/student/assignment/peer
+                         cu (assignment-id a)))))))
     (send/back
      (template
       #:breadcrumb (list (cons "Home" #f))
@@ -1903,21 +1912,31 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                         (length (did-prof-eval-completed))))
                   ,@(rest (fourth (stat-table grades))))])))))))
 
-  (define ((make-prof-eval-completed? assignment-secs assignment-question-prof-grade-path)
+  (define ((make-prof-eval-completed? assignment-last-secs assignment-secs assignment-question-prof-grade-path)
            cu a)
     (define id (assignment-id a))
     (define secs (assignment-secs a))
+    (define last-secs (assignment-last-secs a))
     (define qs (assignment-questions a))
-    (for/and ([q (in-list qs)]
-              [i (in-naturals)])
-      (file-exists?
-       (assignment-question-prof-grade-path cu id i))))
+    (cond
+      [secs
+       (for/and ([q (in-list qs)]
+                 [i (in-naturals)])
+         (file-exists?
+          (assignment-question-prof-grade-path cu id i)))]
+      [last-secs
+       (< last-secs (current-seconds))]
+      [else
+       #f]))
   (define peer-eval-completed?
-    (make-prof-eval-completed? assignment-peer-secs assignment-question-student-grade-path/peer))
+    (make-prof-eval-completed? assignment-eval-secs assignment-peer-secs
+                               assignment-question-student-grade-path/peer))
   (define self-eval-completed?
-    (make-prof-eval-completed? assignment-eval-secs assignment-question-student-grade-path))
+    (make-prof-eval-completed? assignment-due-secs assignment-eval-secs
+                               assignment-question-student-grade-path))
   (define prof-eval-completed?
-    (make-prof-eval-completed? (λ (x) +inf.0) assignment-question-prof-grade-path))
+    (make-prof-eval-completed? assignment-peer-secs (λ (x) +inf.0)
+                               assignment-question-prof-grade-path))
 
   (define current-user (make-parameter #f))
   (define current-user-type (make-parameter #f))
