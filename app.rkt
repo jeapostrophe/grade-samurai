@@ -347,7 +347,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (directory-list* (assignment-file-path u id)))
   (define (assignment-time-path u id)
     (build-path (assignment-path u id) "time"))
-  (define (file->value* p) 
+  (define (file->value* p)
     (and (file-exists? p) (file->value p)))
   (define (assignment-time u id)
     (file->value* (assignment-time-path u id)))
@@ -436,7 +436,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        ;; It is before the self assessment date, if there is one
        (and (assignment-eval-secs a)
             (< (current-seconds) (assignment-eval-secs a)))
-       ;; It is after and...       
+       (and (assignment-due-secs a)
+            (< (current-seconds) (assignment-due-secs a)))
+       ;; It is after and...
        (and
         ;; they've evaluated themselves...
         (self-eval-completed? cu a)
@@ -589,7 +591,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
              (match-define (assignment nw ow id ds es ps qs) a)
              (cond
                ;; Don't consider it turned in, if...
-               [(or 
+               [(or
                  ;; it was not due
                  (not (< ds now))
                  ;; I have done it, but the professor didn't look at it
@@ -726,25 +728,25 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
        (define triangle-id (symbol->string (gensym 'tri)))
        (define comments-id (symbol->string (gensym 'ans)))
        `(div ([class ,(format "answer ~a" which)])
-             (p 
+             (p
               (a ([id ,triangle-id]
                   [class "tick"]
                   [href ,(format "javascript:TocviewToggle(~s,~s)" triangle-id comments-id)])
                  9660) nbsp
-              ,(format "~a evaluation is: ~a"
-                         which
-                         (match ans
-                           [(answer:bool _ _ completed?)
-                            (if completed?
-                              "Yes"
-                              "No")]
-                           [(answer:numeric _ _ value)
-                            (format-% value)]))
-                ,(if delete?
-                   `(span " "
-                          (a ([href ,delete?])
-                             "(rescind)"))
-                   ""))
+                 ,(format "~a evaluation is: ~a"
+                          which
+                          (match ans
+                            [(answer:bool _ _ completed?)
+                             (if completed?
+                               "Yes"
+                               "No")]
+                            [(answer:numeric _ _ value)
+                             (format-% value)]))
+                 ,(if delete?
+                    `(span " "
+                           (a ([href ,delete?])
+                              "(rescind)"))
+                    ""))
              ,(string->linked-html #:id comments-id
                                    (answer-comments ans)))]
       [else
@@ -1177,7 +1179,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
   (define (cond-hyperlink done? available closed text1 link1 text2 link2)
     (cond
       #;[(or (not available) (not closed))
-       ""]
+      ""]
       [DEBUG?
        `(p (a ([href ,link1]) ,text1) (br)
            (a ([href ,link2]) ,text2))]
@@ -1193,7 +1195,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (page/student req cu)
     (check-user cu)
-    (GRADE-CACHE-CLEAR! cu)    
+    (GRADE-CACHE-CLEAR! cu)
     ;; TODO base off which phases they can still do
     (define-values (past upcoming)
       (partition
@@ -1259,11 +1261,12 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                               cu
                               (assignment-id a)
                               0)))])))
-        (tr 
+        (tr
          ,(if (equal? "final" (assignment-id a))
-            `(td 
+            `(td
               ,(if (is-admin?)
-                 "XXX Turn in final"
+                 `(a ([href ,(main-url page/admin/turnin/final cu)])
+                     "Submit Final")
                  "The professor will turn in the final on the site on your behalf."))
             `(td ,(cond-hyperlink
                    (files-submitted? cu (assignment-id a))
@@ -1283,22 +1286,22 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                "Self Evaluation Details"
                (main-url page/student/assignment/self
                          cu (assignment-id a))))
-         (td 
+         (td
           #;
           ,(cond-hyperlink
-               (peer-eval-completed? cu a)
-               (assignment-eval-secs a) (assignment-peer-secs a)
-               "Grade a Peer"
-               (main-url page/student/assignment/peer/edit
-                         cu (assignment-id a))
-               "Grade a Peer Details"
-               (main-url page/student/assignment/peer
-                         cu (assignment-id a)))))))
+          (peer-eval-completed? cu a)
+          (assignment-eval-secs a) (assignment-peer-secs a)
+          "Grade a Peer"
+          (main-url page/student/assignment/peer/edit
+          cu (assignment-id a))
+          "Grade a Peer Details"
+          (main-url page/student/assignment/peer
+          cu (assignment-id a)))))))
     (send/back
      (template
       #:breadcrumb (list (cons "Home" #f))
       (render-student-info cu)
-      (class-average-table cu)      
+      (class-average-table cu)
       `(div ([class "assignments upcoming"])
             (h1 "Future")
             ,@(map render-assignment upcoming))
@@ -1501,17 +1504,17 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (page/student/photo req student)
     (define user-img-path (user-image-path student))
-      (define user-email
-        (student-email (student-info student)))
-      (if (file-exists? user-img-path)
-        (response/full
-         200 #"Okay"
-         (current-seconds) #"image/jpg"
-         empty
-         (list (file->bytes user-img-path)))
-        (redirect-to
-         (format "http://www.gravatar.com/avatar/~a?s=160&d=mm"
-                 (md5 (string-downcase (string-trim-both user-email)))))))
+    (define user-email
+      (student-email (student-info student)))
+    (if (file-exists? user-img-path)
+      (response/full
+       200 #"Okay"
+       (current-seconds) #"image/jpg"
+       empty
+       (list (file->bytes user-img-path)))
+      (redirect-to
+       (format "http://www.gravatar.com/avatar/~a?s=160&d=mm"
+               (md5 (string-downcase (string-trim-both user-email)))))))
 
   (define (user-info-complete? cu)
     (match-define (student nick first last email)
@@ -1524,9 +1527,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (student-info u)
     (define p (user-info-path u))
-      (if (file-exists? p)
-        (file->value p)
-        (student "" "" "" "")))
+    (if (file-exists? p)
+      (file->value p)
+      (student "" "" "" "")))
   (define (student-display-name u)
     (match-define (student nick first last _) (student-info u))
     (format "~a \"~a\" ~a (~a)"
@@ -1576,9 +1579,9 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
            (render-student-info u))))
 
        (write-to-file*
-          ans
-          (assignment-question-prof-grade-path u id i))
-         (GRADE-CACHE-CLEAR! (assignment-peer u id))
+        ans
+        (assignment-question-prof-grade-path u id i))
+       (GRADE-CACHE-CLEAR! (assignment-peer u id))
 
        (page/admin/grade-next req #t)]
       [#f
@@ -1665,7 +1668,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
 
   (define (page/admin/students req)
     (unless (is-admin?)
-      (page/root req))    
+      (page/root req))
 
     (send/back
      (template
@@ -1724,15 +1727,15 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                             ([a (in-list assignments)]
                              #:when (self-eval-completed? u a)
                              #:unless (prof-eval-completed? u a))
-                          (format "~a " (assignment-id a)))))))))))  
+                          (format "~a " (assignment-id a)))))))))))
 
   (define (page/admin/export req)
     (unless (is-admin?)
       (page/root req))
 
-    (response/output 
+    (response/output
      #:mime-type #"text/csv"
-     (λ (op) 
+     (λ (op)
        (parameterize ([current-output-port op])
          (printf "Student,NumericFinal")
          (for ([a (in-list assignments)])
@@ -1744,7 +1747,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
            (printf "~a," u)
            (printf "=SUM(C~a:Z~a)" i i)
            (for ([a (in-list assignments)])
-             (printf ",~a" 
+             (printf ",~a"
                      (real->decimal-string
                       (compute-assignment-grade/id
                        u
@@ -1912,6 +1915,30 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
                         (length (did-prof-eval-completed))))
                   ,@(rest (fourth (stat-table grades))))])))))))
 
+  (define (page/admin/turnin/final req cu)
+    (unless (is-admin?)
+      (send/back
+       (redirect-to (main-url page/student cu))))
+
+    (define id "final")
+    (define a (id->assignment id))
+
+    (make-directory* (assignment-file-path cu id))
+    (display-to-file #:exists 'replace
+                     "See physical turnin."
+                     (build-path (assignment-file-path cu id)
+                                 "Final"))
+
+    (make-parent-directory* (assignment-time-path cu id))
+    (display-to-file #:exists 'replace 3 (assignment-time-path cu id))
+
+    (for ([question (assignment-questions a)]
+          [i (in-naturals)])
+      (define answer (answer:numeric (current-seconds) "" 1))
+      (write-to-file* answer (assignment-question-student-grade-path cu id i)))
+
+    (redirect-to (main-url page/student cu)))
+
   (define ((make-prof-eval-completed? assignment-last-secs assignment-secs assignment-question-prof-grade-path)
            cu a)
     (define id (assignment-id a))
@@ -1919,7 +1946,7 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
     (define last-secs (assignment-last-secs a))
     (define qs (assignment-questions a))
     (cond
-      [secs
+      [(or secs (equal? id "final"))
        (for/and ([q (in-list qs)]
                  [i (in-naturals)])
          (file-exists?
@@ -1969,6 +1996,8 @@ abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm
       page/admin/assignments/view]
      [("admin" "grade-next")
       page/admin/grade-next]
+     [("admin" "turni" "final" (string-arg))
+      page/admin/turnin/final]
      [("login")
       page/login]
      [("logout")
